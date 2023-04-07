@@ -4,3 +4,6 @@
 [submodule "deps/api-common-protos"]
 	path = deps/api-common-protos
 	url = https://github.com/googleapis/api-common-protos
+[submodule "deps/pinecone-openapi-spec"]
+	path = deps/pinecone-openapi-spec
+	url = https://github.com/sigpwned/pinecone-openapi-spec
