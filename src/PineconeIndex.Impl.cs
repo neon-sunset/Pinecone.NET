@@ -1,10 +1,18 @@
+using System.Text.Json.Serialization;
+using Pinecone.Transport;
+
 namespace Pinecone;
 
-public partial record PineconeIndex
+public partial record PineconeIndex<TTransport> : IDisposable
+    where TTransport : struct, ITransport<TTransport>
 {
-    public Task<PineconeIndexStats> DescribeStats(PineconeIndex indexDescription)
+    [JsonIgnore]
+    internal TTransport Transport { get; set; }
+
+    public Task<PineconeIndexStats> DescribeStats(
+        IEnumerable<KeyValuePair<string, string>>? filter = null)
     {
-        throw new NotImplementedException();
+        return Transport.DescribeStats(filter);
     }
 
     public Task Query(
@@ -14,7 +22,8 @@ public partial record PineconeIndex
         bool includeValues = false,
         bool includeMetadata = false)
     {
-        throw new NotImplementedException();
+        return Transport.Query(
+            vector, topK, indexNamespace, includeValues, includeMetadata);
     }
 
     // TODO: Add actual vectors
@@ -48,4 +57,6 @@ public partial record PineconeIndex
     {
         throw new NotImplementedException();
     }
+
+    public void Dispose() => Transport.Dispose();
 }

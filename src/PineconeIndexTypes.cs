@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
-using Pinecone.Serialization;
+using Pinecone.Transport;
+using Pinecone.Transport.Rest;
 
 namespace Pinecone;
 
@@ -9,7 +10,8 @@ public readonly record struct PineconeIndexName(string Value)
     public static implicit operator PineconeIndexName(string value) => new(value);
 }
 
-public partial record PineconeIndex
+public partial record PineconeIndex<TTransport>
+    where TTransport : struct, ITransport<TTransport>
 {
     [JsonPropertyName("database")]
     public required PineconeIndexDetails Details { get; init; }
@@ -19,9 +21,6 @@ public partial record PineconeIndex
 
     [JsonPropertyName("metadata_config")]
     public Dictionary<string, string[]>? MetadataConfig { get; init; }
-
-    [JsonIgnore]
-    internal PineconeClient? Client { get; set; }
 }
 
 public record PineconeIndexDetails
@@ -71,7 +70,7 @@ public record PineconeIndexStatus
     public string?[]? Crashed { get; init; }
 }
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(PineconeIndexStateConverter))]
 public enum PineconeIndexState
 {
     Initializing,
@@ -83,20 +82,18 @@ public enum PineconeIndexState
 
 public record PineconeIndexStats
 {
-    // TODO: check actual response
-    /// <summary>
-    /// name: vectorCount
-    /// </summary>
-    // public required Dictionary<string, long> Namespaces { get; init; }
+    public required PineconeIndexNamespace[] Namespaces { get; init; }
 
-    public required long Dimension { get; init; }
+    public required uint Dimension { get; init; }
 
     public required float IndexFullness { get; init; }
 
-    public required long TotalVectorCount { get; init; }
+    public required uint TotalVectorCount { get; init; }
 }
 
 public readonly record struct PineconeIndexNamespace
 {
     public required string Name { get; init; }
+
+    public required uint VectorCount { get; init; }
 }

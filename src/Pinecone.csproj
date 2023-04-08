@@ -3,28 +3,28 @@
     <TargetFrameworks>net7.0;net8.0</TargetFrameworks>
     <WarningsAsErrors>nullable</WarningsAsErrors>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>12</LangVersion>
+    <LangVersion>preview</LangVersion>
     <Features>strict</Features>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.1.0" />
+    <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="7.0.4" />
+    <PackageReference Include="PolySharp" Version="1.13.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="RangeExtensions" Version="2.1.1" />
-    <!-- <PackageReference Include="Google.Protobuf" Version="3.13.0" />
+    <PackageReference Include="Google.Protobuf" Version="3.13.0" />
     <PackageReference Include="Grpc.Net.ClientFactory" Version="2.32.0" />
     <PackageReference Include="Grpc.Tools" Version="2.53.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
-    </PackageReference> -->
+    </PackageReference>
   </ItemGroup>
-  <!-- <ItemGroup>
-    <Protobuf Include="Grpc\VectorService.proto" GrpcServices="Client" AdditionalImportDirs="..\deps\api-common-protos;..\deps\grpc-gateway">
-      <SourceUrl>https://raw.githubusercontent.com/pinecone-io/go-pinecone/main/pinecone_grpc/vector_service.proto</SourceUrl>
+  <ItemGroup>
+    <Protobuf Include="..\deps\pinecone-client\client_sdk\src\proto\vector_service.proto" GrpcServices="Client" Link="Grpc\Protos\vector_service.proto">
+      <SourceUrl>https://raw.githubusercontent.com/pinecone-io/pinecone-client/main/client_sdk/src/proto/vector_service.proto</SourceUrl>
     </Protobuf>
-    <Protobuf Include="..\deps\api-common-protos\google\api\annotations.proto" AdditionalImportDirs="..\deps\api-common-protos" GrpcServices="None" />
-    <Protobuf Include="..\deps\api-common-protos\google\api\http.proto" AdditionalImportDirs="..\deps\api-common-protos" GrpcServices="None" />
-    <Protobuf Include="..\deps\api-common-protos\google\api\field_behavior.proto" AdditionalImportDirs="..\deps\api-common-protos" GrpcServices="None" />
-    <Protobuf Include="..\deps\api-common-protos\google\rpc\error_details.proto" AdditionalImportDirs="..\deps\api-common-protos" GrpcServices="None" />
-    <Protobuf Include="..\deps\grpc-gateway\protoc-gen-openapiv2\options\*.proto" AdditionalImportDirs="..\deps\grpc-gateway" GrpcServices="None" />
-  </ItemGroup> -->
+  </ItemGroup>
 </Project>

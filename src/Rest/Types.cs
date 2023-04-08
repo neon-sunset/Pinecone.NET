@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Pinecone.Serialization;
+namespace Pinecone.Transport.Rest;
 
 internal sealed record CreateIndexRequest : PineconeIndexDetails
 {
