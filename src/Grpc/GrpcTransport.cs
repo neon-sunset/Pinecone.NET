@@ -9,8 +9,6 @@ namespace Pinecone.Transport;
 
 public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 {
-    private static readonly ObjectPool<RepeatedField<float>> ProtoVectorPool = ObjectPool.Create(new RepeatedFieldPolicy());
-
     private readonly Metadata Auth;
 
     private readonly GrpcChannel Channel;
