@@ -17,6 +17,16 @@ public readonly record struct RestTransport : ITransport<RestTransport>
 
     public static RestTransport Create(string host, string apiKey) => new(host, apiKey);
 
+    public Task<PineconeIndexStats> DescribeStats(IEnumerable<KeyValuePair<string, string>>? filter = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<ScoredVector[]> Query(float[] vector, uint topK, string? indexNamespace = null, bool includeValues = false, bool includeMetadata = false)
+    {
+        throw new NotImplementedException();
+    }
+
     public Task Delete(IEnumerable<string> ids, string? indexNamespace = null)
     {
         throw new NotImplementedException();
@@ -32,17 +42,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         throw new NotImplementedException();
     }
 
-    public Task<PineconeIndexStats> DescribeStats(IEnumerable<KeyValuePair<string, string>>? filter = null)
-    {
-        throw new NotImplementedException();
-    }
-
     public Task Fetch(IEnumerable<string> ids)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task Query(ReadOnlyMemory<float> vector, long topK, string? indexNamespace = null, bool includeValues = false, bool includeMetadata = false)
     {
         throw new NotImplementedException();
     }

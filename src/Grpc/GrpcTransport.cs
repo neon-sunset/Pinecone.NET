@@ -37,21 +37,37 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
             request.Filter = filter.ToProtoStruct();
         }
 
-        using var response = Grpc.DescribeIndexStatsAsync(request, Auth);
-        return (await response).ToPublicType();
+        using var call = Grpc.DescribeIndexStatsAsync(request, Auth);
+        return (await call).ToPublicType();
     }
 
-    public Task Query(
-        ReadOnlyMemory<float> vector,
-        long topK,
+    public async Task<ScoredVector[]> Query(
+        float[] vector,
+        uint topK,
         string? indexNamespace = null,
         bool includeValues = false,
         bool includeMetadata = false)
     {
-        // TODO: Figure out a way to avoid copying data to RepeatedField<float>.
-        // TODO: Extra points for figuring out a way to directly write data to Grpc buffer.
+        var request = new QueryRequest()
+        {
+            TopK = topK,
+            Namespace = indexNamespace ?? "",
+            IncludeMetadata = includeMetadata,
+            IncludeValues = includeValues
+        };
+        request.Vector.OverwriteWith(vector);
 
-        throw new NotImplementedException();
+        using var call = Grpc.QueryAsync(request, Auth);
+        var response = await call;
+
+        var matches = response.Matches;
+        var vectors = new ScoredVector[response.Matches.Count];
+        foreach (var i in 0..matches.Count)
+        {
+            vectors[i] = matches[i].ToPublicType();
+        }
+
+        return vectors;
     }
 
     public Task Delete(IEnumerable<string> ids, string? indexNamespace = null)

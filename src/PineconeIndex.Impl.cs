@@ -15,9 +15,9 @@ public partial record PineconeIndex<TTransport> : IDisposable
         return Transport.DescribeStats(filter);
     }
 
-    public Task Query(
-        ReadOnlyMemory<float> vector,
-        long topK,
+    public Task<ScoredVector[]> Query(
+        float[] vector,
+        uint topK,
         string? indexNamespace = null,
         bool includeValues = false,
         bool includeMetadata = false)
