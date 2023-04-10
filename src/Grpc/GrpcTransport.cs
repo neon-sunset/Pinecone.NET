@@ -1,8 +1,6 @@
 using CommunityToolkit.Diagnostics;
-using Google.Protobuf.Collections;
 using Grpc.Core;
 using Grpc.Net.Client;
-using Microsoft.Extensions.ObjectPool;
 using Pinecone.Transport.Grpc;
 
 namespace Pinecone.Transport;
@@ -27,7 +25,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 
     public static GrpcTransport Create(string host, string apiKey) => new(host, apiKey);
 
-    public async Task<PineconeIndexStats> DescribeStats(IEnumerable<KeyValuePair<string, string>>? filter = null)
+    public async Task<PineconeIndexStats> DescribeStats(IEnumerable<KeyValuePair<string, MetadataValue>>? filter = null)
     {
         var request = new DescribeIndexStatsRequest();
         if (filter != null)
@@ -40,7 +38,8 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
     }
 
     public async Task<ScoredVector[]> Query(
-        float[] vector,
+        string? id,
+        float[]? values,
         uint topK,
         string? indexNamespace = null,
         bool includeValues = false,
@@ -53,7 +52,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
             IncludeMetadata = includeMetadata,
             IncludeValues = includeValues
         };
-        request.Vector.OverwriteWith(vector);
+        request.Vector.OverwriteWith(values!); // TODO ID ^ VALUES case
 
         using var call = Grpc.QueryAsync(request, Auth);
         var response = await call;

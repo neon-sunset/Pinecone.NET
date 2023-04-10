@@ -2,14 +2,14 @@ namespace Pinecone.Transport;
 
 public interface ITransport<T> : ITransportFactory<T>, IDisposable
 {
-    Task<PineconeIndexStats> DescribeStats(IEnumerable<KeyValuePair<string, string>>? filter = null);
+    Task<PineconeIndexStats> DescribeStats(IEnumerable<KeyValuePair<string, MetadataValue>>? filter = null);
     Task<ScoredVector[]> Query(
-        float[] vector,
+        string? id,
+        float[]? values,
         uint topK,
-        string?
-        indexNamespace = null,
-        bool includeValues = false,
-        bool includeMetadata = false);
+        string? indexNamespace,
+        bool includeValues,
+        bool includeMetadata);
     Task Delete(IEnumerable<string> ids, string? indexNamespace = null);
     Task Delete(IDictionary<string, string> filter, string? indexNamespace = null);
     Task DeleteAll(string? indexNamespace = null);

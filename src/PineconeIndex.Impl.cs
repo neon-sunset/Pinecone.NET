@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Pinecone.Transport;
 
@@ -10,20 +11,31 @@ public partial record PineconeIndex<TTransport> : IDisposable
     internal TTransport Transport { get; set; }
 
     public Task<PineconeIndexStats> DescribeStats(
-        IEnumerable<KeyValuePair<string, string>>? filter = null)
+        IEnumerable<KeyValuePair<string, MetadataValue>>? filter = null)
     {
         return Transport.DescribeStats(filter);
     }
 
     public Task<ScoredVector[]> Query(
-        float[] vector,
+        float[] values,
         uint topK,
         string? indexNamespace = null,
         bool includeValues = false,
         bool includeMetadata = false)
     {
         return Transport.Query(
-            vector, topK, indexNamespace, includeValues, includeMetadata);
+            null, values, topK, indexNamespace, includeValues, includeMetadata);
+    }
+
+    public Task<ScoredVector[]> QueryById(
+        string id,
+        uint topK,
+        string? indexNamespace = null,
+        bool includeValues = false,
+        bool includeMetadata = false)
+    {
+        return Transport.Query(
+            id, null, topK, indexNamespace, includeValues, includeMetadata);
     }
 
     // TODO: Add actual vectors

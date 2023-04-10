@@ -17,12 +17,12 @@ public readonly record struct RestTransport : ITransport<RestTransport>
 
     public static RestTransport Create(string host, string apiKey) => new(host, apiKey);
 
-    public Task<PineconeIndexStats> DescribeStats(IEnumerable<KeyValuePair<string, string>>? filter = null)
+    public Task<PineconeIndexStats> DescribeStats(IEnumerable<KeyValuePair<string, MetadataValue>>? filter = null)
     {
         throw new NotImplementedException();
     }
 
-    public Task<ScoredVector[]> Query(float[] vector, uint topK, string? indexNamespace = null, bool includeValues = false, bool includeMetadata = false)
+    public Task<ScoredVector[]> Query(string? id, float[]? vector, uint topK, string? indexNamespace = null, bool includeValues = false, bool includeMetadata = false)
     {
         throw new NotImplementedException();
     }

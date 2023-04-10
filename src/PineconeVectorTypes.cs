@@ -8,7 +8,7 @@ public record PineconeVector
 
     public SparseValues? SparseValues { get; init; }
 
-    // TODO: Type-safe google.Protobuf.Struct metadata
+    public MetadataValue? Metadata { get; init; }
 }
 
 public readonly record struct SparseValues
@@ -28,5 +28,13 @@ public record ScoredVector
 
     public required SparseValues SparseValues { get; init; }
 
-    // TODO: Type-safe google.Protobuf.Struct metadata
+    public MetadataValue? Metadata { get; init; }
+}
+
+public readonly record struct MetadataValue(object? Inner)
+{
+    public static implicit operator Google.Protobuf.WellKnownTypes.Value(MetadataValue value)
+    {
+        throw new NotImplementedException();
+    }
 }

@@ -16,12 +16,12 @@ internal static class Extensions
     }
 
     // gRPC types conversion to sane and usable ones
-    public static Struct ToProtoStruct(this IEnumerable<KeyValuePair<string, string>> source)
+    public static Struct ToProtoStruct(this IEnumerable<KeyValuePair<string, MetadataValue>> source)
     {
         var protoStruct = new Struct();
         foreach (var (key, value) in source)
         {
-            protoStruct.Fields.Add(key, new Value { StringValue = value });
+            protoStruct.Fields.Add(key, value);
         }
 
         return protoStruct;
