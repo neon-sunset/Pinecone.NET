@@ -52,7 +52,16 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
             IncludeMetadata = includeMetadata,
             IncludeValues = includeValues
         };
-        request.Vector.OverwriteWith(values!); // TODO ID ^ VALUES case
+
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            Guard.IsNotNull(values);
+            request.Vector.OverwriteWith(values);
+        }
+        else
+        {
+            request.Id = id;
+        }
 
         using var call = Grpc.QueryAsync(request, Auth);
         var response = await call;
@@ -67,34 +76,85 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         return vectors;
     }
 
-    public Task Delete(IEnumerable<string> ids, string? indexNamespace = null)
+    public async Task<uint> Upsert(IEnumerable<PineconeVector> vectors, string? indexNamespace = null)
     {
-        throw new NotImplementedException();
+        var request = new UpsertRequest { Namespace = indexNamespace ?? "" };
+        request.Vectors.AddRange(vectors.Select(v => v.ToProtoVector()));
+
+        using var call = Grpc.UpsertAsync(request, Auth);
+        return (await call).UpsertedCount;
     }
 
-    public Task Delete(IDictionary<string, string> filter, string? indexNamespace = null)
+    public async Task Update(PineconeVector vector, string? indexNamespace = null)
     {
-        throw new NotImplementedException();
+        var request = new UpdateRequest
+        {
+            Id = vector.Id,
+            SparseValues = vector.SparseValues?.ToProtoSparseValues(),
+            SetMetadata = vector.Metadata?.ToProtoStruct(),
+            Namespace = indexNamespace ?? ""
+        };
+        request.Values.OverwriteWith(vector.Values);
+
+        using var call = Grpc.UpdateAsync(request, Auth);
+        _ = await call;
     }
 
-    public Task DeleteAll(string? indexNamespace = null)
+    public async Task<(string Namespace, Dictionary<string, PineconeVector> Vectors)> Fetch(
+        IEnumerable<string> ids, string? indexNamespace = null)
     {
-        throw new NotImplementedException();
+        var request = new FetchRequest
+        {
+            Ids = { ids },
+            Namespace = indexNamespace ?? ""
+        };
+
+        using var call = Grpc.FetchAsync(request, Auth);
+        var response = await call;
+
+        return (
+            response.Namespace,
+            response.Vectors.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.ToPublicType()));
     }
 
-    public Task Fetch(IEnumerable<string> ids)
+    public async Task Delete(IEnumerable<string> ids, string? indexNamespace = null)
     {
-        throw new NotImplementedException();
+        var request = new DeleteRequest
+        {
+            Ids = { ids },
+            DeleteAll = false,
+            Namespace = indexNamespace ?? ""
+        };
+
+        using var call = Grpc.DeleteAsync(request, Auth);
+        _ = await call;
     }
 
-    public Task Update(object vector, string? indexNamespace = null)
+    public async Task Delete(IEnumerable<KeyValuePair<string, MetadataValue>> filter, string? indexNamespace = null)
     {
-        throw new NotImplementedException();
+        var request = new DeleteRequest
+        {
+            Filter = filter.ToProtoStruct(),
+            DeleteAll = false,
+            Namespace = indexNamespace ?? ""
+        };
+
+        using var call = Grpc.DeleteAsync(request, Auth);
+        _ = await call;
     }
 
-    public Task Upsert(ReadOnlyMemory<object> vectors, string? indexNamespace = null)
+    public async Task DeleteAll(string? indexNamespace = null)
     {
-        throw new NotImplementedException();
+        var request = new DeleteRequest
+        {
+            DeleteAll = true,
+            Namespace = indexNamespace ?? ""
+        };
+
+        using var call = Grpc.DeleteAsync(request, Auth);
+        _ = await call;
     }
 
     public void Dispose() => Channel.Dispose();

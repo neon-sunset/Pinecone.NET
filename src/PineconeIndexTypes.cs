@@ -25,31 +25,31 @@ public partial record PineconeIndex<TTransport>
 
 public record PineconeIndexDetails
 {
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
     [JsonPropertyName("dimension")]
     public required long Dimension { get; init; }
 
     [JsonPropertyName("metric")]
     public required PineconeMetric Metric { get; init; }
 
-    [JsonPropertyName("name")]
-    public required string Name { get; init; }
-
     [JsonPropertyName("pods")]
-    public required long Pods { get; init; }
+    public long? Pods { get; init; }
 
     [JsonPropertyName("pod_type")]
-    public required string PodType { get; init; }
+    public string? PodType { get; init; }
 
     [JsonPropertyName("replicas")]
-    public required long Replicas { get; init; }
+    public long? Replicas { get; init; }
 }
 
 [JsonConverter(typeof(PineconeMetricConverter))]
 public enum PineconeMetric
 {
-    Cosine,
-    DotProduct,
-    Euclidean,
+    Cosine = 0,
+    DotProduct = 1,
+    Euclidean = 2,
 }
 
 public record PineconeIndexStatus

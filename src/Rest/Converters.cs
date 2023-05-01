@@ -1,6 +1,6 @@
-using System.Runtime.Serialization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CommunityToolkit.Diagnostics;
 
 namespace Pinecone.Transport.Rest;
 
@@ -16,10 +16,10 @@ internal sealed class PineconeMetricConverter : JsonConverter<PineconeMetric>
         // Bitwise to lowercase
         return (value[0] | 32) switch
         {
-            (byte)'c' when "cosine"u8.SequenceEqual(value) => PineconeMetric.Cosine,
-            (byte)'d' when "dotproduct"u8.SequenceEqual(value) => PineconeMetric.DotProduct,
-            (byte)'e' when "euclidean"u8.SequenceEqual(value) => PineconeMetric.Euclidean,
-            _ => throw new SerializationException("Unknown enum value")
+            (byte)'c' when value.SequenceEqual("cosine"u8) => PineconeMetric.Cosine,
+            (byte)'d' when value.SequenceEqual("dotproduct"u8) => PineconeMetric.DotProduct,
+            (byte)'e' when value.SequenceEqual("euclidean"u8) => PineconeMetric.Euclidean,
+            _ => ThrowHelper.ThrowArgumentOutOfRangeException<PineconeMetric>("Unknown enum value")
         };
     }
 
@@ -33,7 +33,7 @@ internal sealed class PineconeMetricConverter : JsonConverter<PineconeMetric>
             PineconeMetric.Cosine => "cosine"u8,
             PineconeMetric.DotProduct => "dotproduct"u8,
             PineconeMetric.Euclidean => "euclidean"u8,
-            _ => throw new SerializationException("Unknown enum value")
+            _ => ThrowHelper.ThrowArgumentOutOfRangeException<byte[]>("Unknown enum value")
         });
     }
 }
@@ -48,12 +48,12 @@ internal sealed class PineconeIndexStateConverter : JsonConverter<PineconeIndexS
         var value = reader.ValueSpan;
         return value switch
         {
-            [(byte)'I', ..] when "Initializing"u8.SequenceEqual(value) => PineconeIndexState.Initializing,
-            [(byte)'S', ..] when "ScalingUp"u8.SequenceEqual(value) => PineconeIndexState.ScalingUp,
-            [(byte)'S', ..] when "ScalingDown"u8.SequenceEqual(value) => PineconeIndexState.ScalingDown,
-            [(byte)'T', ..] when "Terminating"u8.SequenceEqual(value) => PineconeIndexState.Terminating,
-            [(byte)'R', ..] when "Ready"u8.SequenceEqual(value) => PineconeIndexState.Ready,
-            _ => throw new SerializationException("Unknown enum value")
+            [(byte)'I', ..] when value.SequenceEqual("Initializing"u8) => PineconeIndexState.Initializing,
+            [(byte)'S', ..] when value.SequenceEqual("ScalingUp"u8) => PineconeIndexState.ScalingUp,
+            [(byte)'S', ..] when value.SequenceEqual("ScalingDown"u8) => PineconeIndexState.ScalingDown,
+            [(byte)'T', ..] when value.SequenceEqual("Terminating"u8) => PineconeIndexState.Terminating,
+            [(byte)'R', ..] when value.SequenceEqual("Ready"u8) => PineconeIndexState.Ready,
+            _ => ThrowHelper.ThrowArgumentOutOfRangeException<PineconeIndexState>("Unknown enum value")
         };
     }
 
@@ -69,7 +69,7 @@ internal sealed class PineconeIndexStateConverter : JsonConverter<PineconeIndexS
             PineconeIndexState.ScalingDown => "ScalingDown"u8,
             PineconeIndexState.Terminating => "Terminating"u8,
             PineconeIndexState.Ready => "Ready"u8,
-            _ => throw new SerializationException("Unknown enum value")
+            _ => ThrowHelper.ThrowArgumentOutOfRangeException<byte[]>("Unknown enum value")
         });
     }
 }

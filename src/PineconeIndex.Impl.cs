@@ -1,10 +1,9 @@
-using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Pinecone.Transport;
 
 namespace Pinecone;
 
-public partial record PineconeIndex<TTransport> : IDisposable
+public sealed partial record PineconeIndex<TTransport> : IDisposable
     where TTransport : struct, ITransport<TTransport>
 {
     [JsonIgnore]
@@ -38,21 +37,21 @@ public partial record PineconeIndex<TTransport> : IDisposable
             id, null, topK, indexNamespace, includeValues, includeMetadata);
     }
 
-    // TODO: Add actual vectors
-    public Task Upsert(ReadOnlyMemory<object> vectors, string? indexNamespace = null)
+    public Task<uint> Upsert(IEnumerable<PineconeVector> vectors, string? indexNamespace = null)
     {
-        throw new NotImplementedException();
+        return Transport.Upsert(vectors, indexNamespace);
     }
 
     // TODO: Add actual vector
-    public Task Update(object vector, string? indexNamespace = null)
+    public Task Update(PineconeVector vector, string? indexNamespace = null)
     {
-        throw new NotImplementedException();
+        return Transport.Update(vector, indexNamespace);
     }
 
-    public Task Fetch(IEnumerable<string> ids)
+    public Task<(string Namespace, Dictionary<string, PineconeVector> Vectors)> Fetch(
+        IEnumerable<string> ids, string? indexNamespace = null)
     {
-        throw new NotImplementedException();
+        return Transport.Fetch(ids, indexNamespace);
     }
 
     public Task Delete(IEnumerable<string> ids, string? indexNamespace = null)

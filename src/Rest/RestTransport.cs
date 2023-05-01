@@ -27,12 +27,17 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         throw new NotImplementedException();
     }
 
+    public Task<uint> Upsert(IEnumerable<PineconeVector> vectors, string? indexNamespace = null)
+    {
+        throw new NotImplementedException();
+    }
+
     public Task Delete(IEnumerable<string> ids, string? indexNamespace = null)
     {
         throw new NotImplementedException();
     }
 
-    public Task Delete(IDictionary<string, string> filter, string? indexNamespace = null)
+    public Task Delete(IEnumerable<KeyValuePair<string, MetadataValue>> filter, string? indexNamespace = null)
     {
         throw new NotImplementedException();
     }
@@ -42,17 +47,13 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         throw new NotImplementedException();
     }
 
-    public Task Fetch(IEnumerable<string> ids)
+    public Task<(string Namespace, Dictionary<string, PineconeVector> Vectors)> Fetch(
+        IEnumerable<string> ids, string? indexNamespace = null)
     {
         throw new NotImplementedException();
     }
 
-    public Task Update(object vector, string? indexNamespace = null)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task Upsert(ReadOnlyMemory<object> vectors, string? indexNamespace = null)
+    public Task Update(PineconeVector vector, string? indexNamespace = null)
     {
         throw new NotImplementedException();
     }

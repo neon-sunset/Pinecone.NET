@@ -1,7 +1,9 @@
 namespace Pinecone.Transport;
 
-public interface ITransport<T> : ITransportFactory<T>, IDisposable
+public interface ITransport<T> : IDisposable
 {
+    static abstract T Create(string host, string apiKey);
+
     Task<PineconeIndexStats> DescribeStats(IEnumerable<KeyValuePair<string, MetadataValue>>? filter = null);
     Task<ScoredVector[]> Query(
         string? id,
@@ -10,15 +12,10 @@ public interface ITransport<T> : ITransportFactory<T>, IDisposable
         string? indexNamespace,
         bool includeValues,
         bool includeMetadata);
+    Task<uint> Upsert(IEnumerable<PineconeVector> vectors, string? indexNamespace = null);
+    Task Update(PineconeVector vector, string? indexNamespace = null);
+    Task<(string Namespace, Dictionary<string, PineconeVector> Vectors)> Fetch(IEnumerable<string> ids, string? indexNamespace = null);
     Task Delete(IEnumerable<string> ids, string? indexNamespace = null);
-    Task Delete(IDictionary<string, string> filter, string? indexNamespace = null);
+    Task Delete(IEnumerable<KeyValuePair<string, MetadataValue>> filter, string? indexNamespace = null);
     Task DeleteAll(string? indexNamespace = null);
-    Task Fetch(IEnumerable<string> ids);
-    Task Update(object vector, string? indexNamespace = null);
-    Task Upsert(ReadOnlyMemory<object> vectors, string? indexNamespace = null);
-}
-
-public interface ITransportFactory<T>
-{
-    abstract static T Create(string host, string apiKey);
 }

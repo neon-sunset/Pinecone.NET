@@ -13,17 +13,20 @@ internal sealed record CreateIndexRequest : PineconeIndexDetails
     public static CreateIndexRequest From(
         PineconeIndexDetails index,
         Dictionary<string, string[]>? metadataConfig,
-        string? sourceCollection) => new()
+        string? sourceCollection)
     {
-        Dimension = index.Dimension,
-        Metric = index.Metric,
-        Name = index.Name,
-        Pods = index.Pods,
-        PodType = index.PodType,
-        Replicas = index.Replicas,
-        MetadataConfig = metadataConfig,
-        SourceCollection = sourceCollection
-    };
+        return new()
+        {
+            Dimension = index.Dimension,
+            Metric = index.Metric,
+            Name = index.Name,
+            Pods = index.Pods,
+            PodType = index.PodType,
+            Replicas = index.Replicas,
+            MetadataConfig = metadataConfig,
+            SourceCollection = sourceCollection
+        };
+    }
 }
 
 internal readonly record struct ConfigureIndexRequest
