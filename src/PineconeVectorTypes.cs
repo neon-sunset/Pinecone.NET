@@ -1,6 +1,6 @@
-﻿using System.Globalization;
+﻿using System.Text.Json.Serialization;
 using CommunityToolkit.Diagnostics;
-using Pinecone.Transport.Grpc;
+using Pinecone.Rest;
 
 namespace Pinecone;
 
@@ -12,7 +12,7 @@ public record PineconeVector
 
     public SparseValues? SparseValues { get; init; }
 
-    public MetadataValue? Metadata { get; init; }
+    public MetadataMap? Metadata { get; init; }
 }
 
 public readonly record struct SparseValues
@@ -30,49 +30,44 @@ public record ScoredVector
 
     public required float[] Values { get; init; }
 
-    public required SparseValues SparseValues { get; init; }
+    public SparseValues? SparseValues { get; init; }
 
-    public MetadataValue? Metadata { get; init; }
+    public MetadataMap? Metadata { get; init; }
 }
 
+public sealed class MetadataMap : Dictionary<string, MetadataValue> { }
+
+[JsonConverter(typeof(MetadataValueConverter))]
 public readonly record struct MetadataValue
 {
-    private enum ValueKind { Null = 0, Number = 1, String = 2, Bool = 3, Struct = 4, List = 5 }
-
-    public readonly object? Value;
+    public object? Inner { get; }
 
     public MetadataValue(object? value)
     {
-        Value = value;
+        Inner = value;
         if (value switch
         {
             null or
             bool or
             string or
             int or uint or long or ulong or float or double or decimal or
-            IDictionary<string, MetadataValue> or
+            MetadataMap or
             IEnumerable<MetadataValue> => true,
             _ => false
-        }) { Value = value; }
+        }) { Inner = value; }
         else
         {
-            ThrowHelper.ThrowArgumentException($"Unsupported metadata value type: {value?.GetType()}");
+            ThrowHelper.ThrowArgumentException($"Unsupported metadata type: {value!.GetType()}");
         }
     }
 
-    public static implicit operator Google.Protobuf.WellKnownTypes.Value(MetadataValue value) => value.Value switch
-    {
-        // This is terrible but such is life
-        null => Google.Protobuf.WellKnownTypes.Value.ForNull(),
-        int or uint or long or ulong or float or double or decimal => Google.Protobuf.WellKnownTypes.Value.ForNumber(
-            Convert.ToDouble(value.Value, CultureInfo.InvariantCulture)),
-        string strValue => Google.Protobuf.WellKnownTypes.Value.ForString(strValue),
-        bool boolValue => Google.Protobuf.WellKnownTypes.Value.ForBool(boolValue),
-        IDictionary<string, MetadataValue> structValue =>
-            Google.Protobuf.WellKnownTypes.Value.ForStruct(structValue.ToProtoStruct()),
-        IEnumerable<MetadataValue> listValue =>
-            Google.Protobuf.WellKnownTypes.Value.ForList(listValue.Select(v => (Google.Protobuf.WellKnownTypes.Value)v).ToArray()),
-        _ => ThrowHelper.ThrowArgumentException<Google.Protobuf.WellKnownTypes.Value>(
-            $"Unsupported metadata value type: {value.Value!.GetType()}")
-    };
+    public static implicit operator MetadataValue(bool value) => new(value);
+    public static implicit operator MetadataValue(string value) => new(value);
+    public static implicit operator MetadataValue(int value) => new(value);
+    public static implicit operator MetadataValue(float value) => new(value);
+    public static implicit operator MetadataValue(double value) => new(value);
+    public static implicit operator MetadataValue(decimal value) => new(value);
+    public static implicit operator MetadataValue(MetadataMap value) => new(value);
+    public static implicit operator MetadataValue(MetadataValue[] value) => new(value);
+    public static implicit operator MetadataValue(List<MetadataValue> value) => new(value);
 }

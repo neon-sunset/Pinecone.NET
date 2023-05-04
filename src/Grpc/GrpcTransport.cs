@@ -1,9 +1,8 @@
 using CommunityToolkit.Diagnostics;
 using Grpc.Core;
 using Grpc.Net.Client;
-using Pinecone.Transport.Grpc;
 
-namespace Pinecone.Transport;
+namespace Pinecone.Grpc;
 
 public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 {
@@ -18,14 +17,14 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         Guard.IsNotNullOrWhiteSpace(host);
         Guard.IsNotNullOrWhiteSpace(apiKey);
 
-        Auth = new() { { "api-key", apiKey } };
+        Auth = new() { { Constants.GrpcApiKey, apiKey } };
         Channel = GrpcChannel.ForAddress($"https://{host}");
         Grpc = new(Channel);
     }
 
     public static GrpcTransport Create(string host, string apiKey) => new(host, apiKey);
 
-    public async Task<PineconeIndexStats> DescribeStats(IEnumerable<KeyValuePair<string, MetadataValue>>? filter = null)
+    public async Task<PineconeIndexStats> DescribeStats(MetadataMap? filter = null)
     {
         var request = new DescribeIndexStatsRequest();
         if (filter != null)
@@ -42,7 +41,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         float[]? values,
         uint topK,
         string? indexNamespace = null,
-        bool includeValues = false,
+        bool includeValues = true,
         bool includeMetadata = false)
     {
         var request = new QueryRequest()
@@ -100,7 +99,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         _ = await call;
     }
 
-    public async Task<(string Namespace, Dictionary<string, PineconeVector> Vectors)> Fetch(
+    public async Task<Dictionary<string, PineconeVector>> Fetch(
         IEnumerable<string> ids, string? indexNamespace = null)
     {
         var request = new FetchRequest
@@ -112,11 +111,9 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         using var call = Grpc.FetchAsync(request, Auth);
         var response = await call;
 
-        return (
-            response.Namespace,
-            response.Vectors.ToDictionary(
-                kvp => kvp.Key,
-                kvp => kvp.Value.ToPublicType()));
+        return response.Vectors.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.ToPublicType());
     }
 
     public async Task Delete(IEnumerable<string> ids, string? indexNamespace = null)
@@ -132,7 +129,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         _ = await call;
     }
 
-    public async Task Delete(IEnumerable<KeyValuePair<string, MetadataValue>> filter, string? indexNamespace = null)
+    public async Task Delete(MetadataMap filter, string? indexNamespace = null)
     {
         var request = new DeleteRequest
         {

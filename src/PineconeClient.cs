@@ -1,8 +1,8 @@
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using CommunityToolkit.Diagnostics;
-using Pinecone.Transport;
-using Pinecone.Transport.Rest;
+using Pinecone.Rest;
 
 namespace Pinecone;
 
@@ -47,7 +47,7 @@ public sealed class PineconeClient : IDisposable
 
     public async Task CreateIndex(
         PineconeIndexDetails indexDetails,
-        Dictionary<string, string[]>? metadataConfig = null,
+        MetadataMap? metadataConfig = null,
         string? sourceCollection = null)
     {
         var request = CreateIndexRequest.From(indexDetails, metadataConfig, sourceCollection);
@@ -67,7 +67,7 @@ public sealed class PineconeClient : IDisposable
 
         var index = (PineconeIndex<TTransport>)response;
         var host = index.Status.Host;
-        var apiKey = Http.DefaultRequestHeaders.GetValues("Api-Key").First();
+        var apiKey = Http.DefaultRequestHeaders.GetValues(Constants.RestApiKey).First();
 
         index.Transport = TTransport.Create(host, apiKey);
         return index;
@@ -89,11 +89,13 @@ public sealed class PineconeClient : IDisposable
 
     private static ValueTask CheckStatusCode(HttpResponseMessage response, [CallerMemberName] string requestName = "")
     {
-        return response.IsSuccessStatusCode ? ValueTask.CompletedTask : ThrowOnFailedResponse();
+        return response.IsSuccessStatusCode ? ValueTask.CompletedTask : ThrowOnFailedResponse(response, requestName);
 
-        async ValueTask ThrowOnFailedResponse()
+        [StackTraceHidden]
+        static async ValueTask ThrowOnFailedResponse(HttpResponseMessage response, string requestName)
         {
-            throw new HttpRequestException($"{requestName} request has failed. Message: {await response.Content.ReadAsStringAsync()}");
+            throw new HttpRequestException($"{requestName} request has failed. " +
+                $"Code: {response.StatusCode}. Message: {await response.Content.ReadAsStringAsync()}");
         }
     }
 }

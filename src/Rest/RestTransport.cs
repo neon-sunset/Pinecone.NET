@@ -1,6 +1,6 @@
 using CommunityToolkit.Diagnostics;
 
-namespace Pinecone.Transport;
+namespace Pinecone.Rest;
 
 public readonly record struct RestTransport : ITransport<RestTransport>
 {
@@ -17,8 +17,9 @@ public readonly record struct RestTransport : ITransport<RestTransport>
 
     public static RestTransport Create(string host, string apiKey) => new(host, apiKey);
 
-    public Task<PineconeIndexStats> DescribeStats(IEnumerable<KeyValuePair<string, MetadataValue>>? filter = null)
+    public Task<PineconeIndexStats> DescribeStats(MetadataMap? filter = null)
     {
+        // TODO: Implement filter (polymorphic) serialization
         throw new NotImplementedException();
     }
 
@@ -37,7 +38,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         throw new NotImplementedException();
     }
 
-    public Task Delete(IEnumerable<KeyValuePair<string, MetadataValue>> filter, string? indexNamespace = null)
+    public Task Delete(MetadataMap filter, string? indexNamespace = null)
     {
         throw new NotImplementedException();
     }
@@ -47,7 +48,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         throw new NotImplementedException();
     }
 
-    public Task<(string Namespace, Dictionary<string, PineconeVector> Vectors)> Fetch(
+    public Task<Dictionary<string, PineconeVector>> Fetch(
         IEnumerable<string> ids, string? indexNamespace = null)
     {
         throw new NotImplementedException();

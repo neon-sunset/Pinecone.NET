@@ -1,18 +1,18 @@
 using System.Text.Json.Serialization;
 
-namespace Pinecone.Transport.Rest;
+namespace Pinecone.Rest;
 
 internal sealed record CreateIndexRequest : PineconeIndexDetails
 {
     [JsonPropertyName("metadata_config")]
-    public Dictionary<string, string[]>? MetadataConfig { get; init; }
+    public MetadataMap? MetadataConfig { get; init; }
 
     [JsonPropertyName("source_collection")]
     public string? SourceCollection { get; init; }
 
     public static CreateIndexRequest From(
         PineconeIndexDetails index,
-        Dictionary<string, string[]>? metadataConfig,
+        MetadataMap? metadataConfig,
         string? sourceCollection)
     {
         return new()

@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
-using Pinecone.Transport;
-using Pinecone.Transport.Rest;
+using Pinecone.Rest;
 
 namespace Pinecone;
 
@@ -10,7 +9,7 @@ public readonly record struct PineconeIndexName(string Value)
     public static implicit operator PineconeIndexName(string value) => new(value);
 }
 
-public partial record PineconeIndex<TTransport>
+public sealed partial record PineconeIndex<TTransport>
     where TTransport : struct, ITransport<TTransport>
 {
     [JsonPropertyName("database")]
@@ -73,15 +72,16 @@ public record PineconeIndexStatus
 [JsonConverter(typeof(PineconeIndexStateConverter))]
 public enum PineconeIndexState
 {
-    Initializing,
-    ScalingUp,
-    ScalingDown,
-    Terminating,
-    Ready
+    Initializing = 0,
+    ScalingUp = 1,
+    ScalingDown = 2,
+    Terminating = 3,
+    Ready = 4
 }
 
 public record PineconeIndexStats
 {
+    [JsonConverter(typeof(PineconeIndexNamespaceArrayConverter))]
     public required PineconeIndexNamespace[] Namespaces { get; init; }
 
     public required uint Dimension { get; init; }

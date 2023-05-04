@@ -1,8 +1,10 @@
+using System.Globalization;
 using System.Reflection;
+using CommunityToolkit.Diagnostics;
 using Google.Protobuf.Collections;
 using Google.Protobuf.WellKnownTypes;
 
-namespace Pinecone.Transport.Grpc;
+namespace Pinecone.Grpc;
 
 internal static class Extensions
 {
@@ -16,26 +18,32 @@ internal static class Extensions
     }
 
     // gRPC types conversion to sane and usable ones
-    public static Struct ToProtoStruct(this IEnumerable<KeyValuePair<string, MetadataValue>> source)
+    public static Struct ToProtoStruct(this MetadataMap source)
     {
         var protoStruct = new Struct();
         foreach (var (key, value) in source)
         {
-            protoStruct.Fields.Add(key, value);
+            protoStruct.Fields.Add(key, value.ToProtoValue());
         }
 
         return protoStruct;
     }
 
-    public static Struct? ToProtoStruct(this MetadataValue source) => source.Value switch
+    public static Value ToProtoValue(this MetadataValue source)
     {
-        null => null,
-        IDictionary<string, MetadataValue> structValue => structValue.ToProtoStruct(),
-        _ => new Struct
+        return source.Inner switch
         {
-            Fields = { { "value", source } }
-        }
-    };
+            // This is terrible but such is life
+            null => Value.ForNull(),
+            int or uint or long or ulong or float or double or decimal =>
+                Value.ForNumber(Convert.ToDouble(source.Inner, CultureInfo.InvariantCulture)),
+            string str => Value.ForString(str),
+            bool boolean => Value.ForBool(boolean),
+            MetadataMap nested => Value.ForStruct(nested.ToProtoStruct()),
+            IEnumerable<MetadataValue> list => Value.ForList(list.Select(v => v.ToProtoValue()).ToArray()),
+            _ => ThrowHelper.ThrowArgumentException<Value>($"Unsupported metadata type: {source.Inner!.GetType()}")
+        };
+    }
 
     public static Vector ToProtoVector(this PineconeVector source)
     {
@@ -86,9 +94,7 @@ internal static class Extensions
                     Values = source.SparseValues.Values.AsArray()
                 }
                 : null,
-            // Metadata = source.Metadata?.Fields.ToDictionary(
-            //     kvp => kvp.Key,
-            //     kvp => kvp.Value.KindCase)
+            Metadata = source.Metadata?.Fields.ToPublicType()
         };
     }
 
@@ -97,27 +103,38 @@ internal static class Extensions
         Id = source.Id,
         Score = source.Score,
         Values = source.Values.AsArray(),
-        SparseValues = new()
+        SparseValues = source.SparseValues?.Indices.Count > 0 ? new()
         {
             Indices = source.SparseValues.Indices.AsArray(),
             Values = source.SparseValues.Values.AsArray()
-        }
+        } : null,
+        Metadata = source.Metadata?.Fields.ToPublicType()
     };
 
-    // TODO: Refactor how MetadataValue is exposed to the user, ensure correct global::Struct conversion (both ways)
-    public static MetadataValue? ToPublicType(this Struct source) => source.Fields?.Count > 0
-        ? new MetadataValue(source.Fields.ToDictionary(
-            kvp => kvp.Key,
-            kvp => (object?)(kvp.Value.KindCase switch
-            {
-                Value.KindOneofCase.BoolValue => kvp.Value.BoolValue,
-                Value.KindOneofCase.NumberValue => kvp.Value.NumberValue,
-                Value.KindOneofCase.StringValue => kvp.Value.StringValue,
-                Value.KindOneofCase.StructValue => kvp.Value.StructValue,
-                // Value.KindOneofCase.ListValue => kvp.Value.ListValue.Values.Select(v => v.ToPublicType()).ToArray(),
-                _ => null
-            })))
-        : null;
+    public static MetadataMap ToPublicType(this MapField<string, Value> source)
+    {
+        var metadata = new MetadataMap();
+        foreach (var (key, value) in source)
+        {
+            metadata.Add(key, value.ToPublicType());
+        }
+        return metadata;
+    }
+
+    public static MetadataValue ToPublicType(this Value source)
+    {
+        return source.KindCase switch
+        {
+            Value.KindOneofCase.None or
+            Value.KindOneofCase.NullValue => new(),
+            Value.KindOneofCase.NumberValue => new(source.NumberValue),
+            Value.KindOneofCase.StringValue => new(source.StringValue),
+            Value.KindOneofCase.BoolValue => new(source.BoolValue),
+            Value.KindOneofCase.StructValue => new(source.StructValue.Fields.ToPublicType()),
+            Value.KindOneofCase.ListValue => new(source.ListValue.Values.Select(v => v.ToPublicType()).ToArray()),
+            _ => ThrowHelper.ThrowArgumentException<MetadataValue>($"Unsupported metadata type: {source.KindCase}")
+        };
+    }
 
     public static RepeatedField<T> AsRepeatedField<T>(this T[] source) where T : unmanaged
     {
