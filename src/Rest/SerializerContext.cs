@@ -13,8 +13,15 @@ namespace Pinecone.Rest;
 [JsonSerializable(typeof(PineconeIndex<RestTransport>))]
 [JsonSerializable(typeof(CreateIndexRequest))]
 [JsonSerializable(typeof(ConfigureIndexRequest))]
+[JsonSerializable(typeof(DescribeStatsRequest))]
+[JsonSerializable(typeof(QueryRequest))]
+[JsonSerializable(typeof(QueryResponse))]
+[JsonSerializable(typeof(UpsertRequest))]
+[JsonSerializable(typeof(UpsertResponse))]
+[JsonSerializable(typeof(UpdateRequest))]
+[JsonSerializable(typeof(FetchResponse))]
+[JsonSerializable(typeof(DeleteRequest))]
 [JsonSerializable(typeof(MetadataMap))]
-[JsonSerializable(typeof(MetadataValue))]
 [JsonSerializable(typeof(MetadataValue[]))]
 [JsonSourceGenerationOptions(
     GenerationMode = JsonSourceGenerationMode.Default,

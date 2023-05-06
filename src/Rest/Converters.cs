@@ -63,7 +63,6 @@ internal sealed class PineconeIndexStateConverter : JsonConverter<PineconeIndexS
     }
 }
 
-// These probably do not work at all but it's a good starting point to avoid getting stuck
 // Co-implemented by Bing Chat :D
 public class PineconeIndexNamespaceArrayConverter : JsonConverter<PineconeIndexNamespace[]>
 {
@@ -71,7 +70,7 @@ public class PineconeIndexNamespaceArrayConverter : JsonConverter<PineconeIndexN
     {
         if (reader.TokenType != JsonTokenType.StartObject)
         {
-            throw new JsonException();
+            ThrowHelper.ThrowFormatException("Expected object element");
         }
 
         // TODO: Remove intermediate allocation
@@ -130,24 +129,40 @@ public class PineconeIndexNamespaceArrayConverter : JsonConverter<PineconeIndexN
 
 public class MetadataValueConverter : JsonConverter<MetadataValue>
 {
-    public override MetadataValue Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override MetadataValue Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        ReadValue(ref reader);
+
+    public override void Write(Utf8JsonWriter writer, MetadataValue value, JsonSerializerOptions options) =>
+        WriteValue(writer, value);
+
+    private static MetadataValue ReadValue(ref Utf8JsonReader reader)
     {
         return reader.TokenType switch
         {
-            JsonTokenType.Null => new(),
-            JsonTokenType.True => new(true),
-            JsonTokenType.False => new(false),
-            JsonTokenType.String => new(reader.GetString()),
-            JsonTokenType.Number => new(reader.GetDouble()),
-            JsonTokenType.StartArray =>
-                new(((JsonConverter<MetadataValue>)SerializerContext.Default.MetadataValueArray.Converter).Read(ref reader, typeToConvert, options)),
-            JsonTokenType.StartObject =>
-                new(((JsonConverter<MetadataMap>)SerializerContext.Default.MetadataMap.Converter).Read(ref reader, typeToConvert, options)),
+            JsonTokenType.Null => default,
+            JsonTokenType.True => true,
+            JsonTokenType.False => false,
+            JsonTokenType.String => reader.GetString(),
+            JsonTokenType.Number => reader.GetDouble(),
+            JsonTokenType.StartArray => ReadArray(ref reader),
+            JsonTokenType.StartObject => ReadMap(ref reader),
             _ => ThrowHelper.ThrowFormatException<MetadataValue>($"Unexpected token type {reader.TokenType}")
         };
     }
 
-    public override void Write(Utf8JsonWriter writer, MetadataValue value, JsonSerializerOptions options)
+    private static MetadataValue[] ReadArray(ref Utf8JsonReader reader)
+    {
+        return JsonSerializer.Deserialize(ref reader, SerializerContext.Default.MetadataValueArray)
+            ?? ThrowHelpers.JsonException<MetadataValue[]>();
+    }
+
+    private static MetadataMap ReadMap(ref Utf8JsonReader reader)
+    {
+        return JsonSerializer.Deserialize(ref reader, SerializerContext.Default.MetadataMap)
+            ?? ThrowHelpers.JsonException<MetadataMap>();
+    }
+
+    private static void WriteValue(Utf8JsonWriter writer, MetadataValue value)
     {
         switch (value.Inner)
         {
@@ -155,20 +170,33 @@ public class MetadataValueConverter : JsonConverter<MetadataValue>
             case bool b: writer.WriteBooleanValue(b); break;
             case string s: writer.WriteStringValue(s); break;
             case double d: writer.WriteNumberValue(d); break;
-            case MetadataValue[] a:
-                writer.WriteStartArray();
-                foreach (var item in a)
-                {
-                    Write(writer, item, options);
-                }
-                writer.WriteEndArray();
-                break;
-            case MetadataMap m:
-                ((JsonConverter<MetadataMap>)SerializerContext.Default.MetadataMap.Converter).Write(writer, m, options);
-                break;
+            case MetadataValue[] a: WriteArray(writer, a); break;
+            case MetadataMap m: WriteMap(writer, m); break;
             default:
-                ThrowHelper.ThrowArgumentOutOfRangeException("Unknown enum value");
+                ThrowHelper.ThrowArgumentOutOfRangeException(
+                    nameof(value.Inner), $"Unknown MetadataValue of type {value.Inner.GetType()}");
                 break;
         }
+    }
+
+    private static void WriteArray(Utf8JsonWriter writer, MetadataValue[] array)
+    {
+        writer.WriteStartArray();
+        foreach (var value in array)
+        {
+            WriteValue(writer, value);
+        }
+        writer.WriteEndArray();
+    }
+
+    private static void WriteMap(Utf8JsonWriter writer, MetadataMap map)
+    {
+        writer.WriteStartObject();
+        foreach (var (key, value) in map)
+        {
+            writer.WritePropertyName(key);
+            WriteValue(writer, value);
+        }
+        writer.WriteEndObject();
     }
 }

@@ -116,40 +116,27 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
             kvp => kvp.Value.ToPublicType());
     }
 
-    public async Task Delete(IEnumerable<string> ids, string? indexNamespace = null)
-    {
-        var request = new DeleteRequest
+    public Task Delete(IEnumerable<string> ids, string? indexNamespace = null) =>
+        Delete(new()
         {
             Ids = { ids },
             DeleteAll = false,
             Namespace = indexNamespace ?? ""
-        };
+        });
 
-        using var call = Grpc.DeleteAsync(request, Auth);
-        _ = await call;
-    }
-
-    public async Task Delete(MetadataMap filter, string? indexNamespace = null)
-    {
-        var request = new DeleteRequest
+    public Task Delete(MetadataMap filter, string? indexNamespace = null) =>
+        Delete(new()
         {
             Filter = filter.ToProtoStruct(),
             DeleteAll = false,
             Namespace = indexNamespace ?? ""
-        };
+        });
 
-        using var call = Grpc.DeleteAsync(request, Auth);
-        _ = await call;
-    }
+    public Task DeleteAll(string? indexNamespace = null) =>
+        Delete(new() { DeleteAll = true, Namespace = indexNamespace ?? "" });
 
-    public async Task DeleteAll(string? indexNamespace = null)
+    private async Task Delete(DeleteRequest request)
     {
-        var request = new DeleteRequest
-        {
-            DeleteAll = true,
-            Namespace = indexNamespace ?? ""
-        };
-
         using var call = Grpc.DeleteAsync(request, Auth);
         _ = await call;
     }
