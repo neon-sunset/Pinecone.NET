@@ -18,7 +18,7 @@ kernel.Config.AddOpenAITextEmbeddingGenerationService(
     oaiOrg);
 
 var generator = kernel.Config.TextEmbeddingGenerationServices.First().Value(kernel);
-var embeddings = await generator.GenerateEmbeddingsAsync(new[] { "hello world" });
+var embeddings = await generator.GenerateEmbeddingsAsync(new[] { "Example embeddings for \"Hello World!\"" });
 
 using var pinecone = new PineconeClient(pineconeKey, pineconeEnv);
 
