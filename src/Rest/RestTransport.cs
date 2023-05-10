@@ -20,49 +20,42 @@ public readonly record struct RestTransport : ITransport<RestTransport>
 
     public static RestTransport Create(string host, string apiKey) => new(host, apiKey);
 
-    public async Task<PineconeIndexStats> DescribeStats(MetadataMap? filter = null)
+    public async Task<IndexStats> DescribeStats(MetadataMap? filter = null)
     {
         var request = new DescribeStatsRequest { Filter = filter };
         var response = await Http.PostAsJsonAsync(
             "/describe_index_stats", request, SerializerContext.Default.DescribeStatsRequest);
 
         await response.CheckStatusCode();
-        return await response.Content.ReadFromJsonAsync(SerializerContext.Default.PineconeIndexStats)
-            ?? ThrowHelpers.JsonException<PineconeIndexStats>();
+        return await response.Content.ReadFromJsonAsync(SerializerContext.Default.IndexStats)
+            ?? ThrowHelpers.JsonException<IndexStats>();
     }
 
     public async Task<ScoredVector[]> Query(
         string? id,
         float[]? values,
+        SparseVector? sparseValues,
         uint topK,
         string? indexNamespace = null,
         bool includeValues = false,
         bool includeMetadata = false)
     {
-        QueryRequest request;
-        if (string.IsNullOrWhiteSpace(id))
+        if (id is null || values is null || sparseValues is null)
         {
-            Guard.IsNotNull(values);
-            request = new()
-            {
-                Vector = values,
-                TopK = topK,
-                Namespace = indexNamespace ?? "",
-                IncludeMetadata = includeMetadata,
-                IncludeValues = includeValues
-            };
+            ThrowHelper.ThrowArgumentException(
+                "At least one of the following parameters must be non-null: id, values, sparseValues");
         }
-        else
+
+        var request = new QueryRequest
         {
-            request = new()
-            {
-                Id = id,
-                TopK = topK,
-                Namespace = indexNamespace ?? "",
-                IncludeMetadata = includeMetadata,
-                IncludeValues = includeValues
-            };
-        }
+            Id = id,
+            Vector = values,
+            SparseVector = sparseValues,
+            TopK = topK,
+            Namespace = indexNamespace ?? "",
+            IncludeMetadata = includeMetadata,
+            IncludeValues = includeValues,
+        };
 
         var response = await Http.PostAsJsonAsync(
             "/query", request, SerializerContext.Default.QueryRequest);
@@ -72,28 +65,28 @@ public readonly record struct RestTransport : ITransport<RestTransport>
             .Matches ?? ThrowHelpers.JsonException<ScoredVector[]>();
     }
 
-    public async Task<uint> Upsert(IEnumerable<PineconeVector> vectors, string? indexNamespace = null)
+    public async Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null)
     {
         var request = new UpsertRequest
         {
-            Vectors = vectors as PineconeVector[] ?? vectors.ToArray(),
+            Vectors = vectors as Vector[] ?? vectors.ToArray(),
             Namespace = indexNamespace ?? ""
         };
 
         var response = await Http.PostAsJsonAsync("/vectors/upsert", request, SerializerContext.Default.UpsertRequest);
 
         await response.CheckStatusCode();
-        return (await response.Content.ReadFromJsonAsync<UpsertResponse>()).UpsertedCount;
+        return (await response.Content.ReadFromJsonAsync(SerializerContext.Default.UpsertResponse)).UpsertedCount;
     }
 
-    public async Task Update(PineconeVector vector, string? indexNamespace = null)
+    public async Task Update(Vector vector, string? indexNamespace = null)
     {
         var request = UpdateRequest.From(vector, indexNamespace);
         var response = await Http.PostAsJsonAsync("/vectors/update", request, SerializerContext.Default.UpdateRequest);
         await response.CheckStatusCode();
     }
 
-    public async Task<Dictionary<string, PineconeVector>> Fetch(
+    public async Task<Dictionary<string, Vector>> Fetch(
         IEnumerable<string> ids, string? indexNamespace = null)
     {
         using var enumerator = ids.GetEnumerator();

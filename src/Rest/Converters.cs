@@ -5,68 +5,66 @@ using CommunityToolkit.Diagnostics;
 
 namespace Pinecone.Rest;
 
-internal sealed class PineconeMetricConverter : JsonConverter<PineconeMetric>
+internal sealed class MetricConverter : JsonConverter<Metric>
 {
-    public override PineconeMetric Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override Metric Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         var value = reader.ValueSpan;
 
-        // Bitwise to lowercase
-        return (value[0] | 32) switch
+        return value[0] switch
         {
-            (byte)'c' when value.SequenceEqual("cosine"u8) => PineconeMetric.Cosine,
-            (byte)'d' when value.SequenceEqual("dotproduct"u8) => PineconeMetric.DotProduct,
-            (byte)'e' when value.SequenceEqual("euclidean"u8) => PineconeMetric.Euclidean,
-            _ => ThrowHelper.ThrowArgumentOutOfRangeException<PineconeMetric>("Unknown enum value")
+            (byte)'c' when value.SequenceEqual("cosine"u8) => Metric.Cosine,
+            (byte)'d' when value.SequenceEqual("dotproduct"u8) => Metric.DotProduct,
+            (byte)'e' when value.SequenceEqual("euclidean"u8) => Metric.Euclidean,
+            _ => ThrowHelper.ThrowArgumentOutOfRangeException<Metric>("Unknown enum value")
         };
     }
 
-    public override void Write(Utf8JsonWriter writer, PineconeMetric value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, Metric value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value switch
         {
-            PineconeMetric.Cosine => "cosine"u8,
-            PineconeMetric.DotProduct => "dotproduct"u8,
-            PineconeMetric.Euclidean => "euclidean"u8,
+            Metric.Cosine => "cosine"u8,
+            Metric.DotProduct => "dotproduct"u8,
+            Metric.Euclidean => "euclidean"u8,
             _ => ThrowHelper.ThrowArgumentOutOfRangeException<byte[]>("Unknown enum value")
         });
     }
 }
 
-internal sealed class PineconeIndexStateConverter : JsonConverter<PineconeIndexState>
+internal sealed class IndexStateConverter : JsonConverter<IndexState>
 {
-    public override PineconeIndexState Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override IndexState Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         var value = reader.ValueSpan;
-        return value switch
+        return value[0] switch
         {
-            [(byte)'I', ..] when value.SequenceEqual("Initializing"u8) => PineconeIndexState.Initializing,
-            [(byte)'S', ..] when value.SequenceEqual("ScalingUp"u8) => PineconeIndexState.ScalingUp,
-            [(byte)'S', ..] when value.SequenceEqual("ScalingDown"u8) => PineconeIndexState.ScalingDown,
-            [(byte)'T', ..] when value.SequenceEqual("Terminating"u8) => PineconeIndexState.Terminating,
-            [(byte)'R', ..] when value.SequenceEqual("Ready"u8) => PineconeIndexState.Ready,
-            _ => ThrowHelper.ThrowArgumentOutOfRangeException<PineconeIndexState>("Unknown enum value")
+            (byte)'I' when value.SequenceEqual("Initializing"u8) => IndexState.Initializing,
+            (byte)'S' when value.SequenceEqual("ScalingUp"u8) => IndexState.ScalingUp,
+            (byte)'S' when value.SequenceEqual("ScalingDown"u8) => IndexState.ScalingDown,
+            (byte)'T' when value.SequenceEqual("Terminating"u8) => IndexState.Terminating,
+            (byte)'R' when value.SequenceEqual("Ready"u8) => IndexState.Ready,
+            _ => ThrowHelper.ThrowArgumentOutOfRangeException<IndexState>("Unknown enum value")
         };
     }
-
-    public override void Write(Utf8JsonWriter writer, PineconeIndexState value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, IndexState value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value switch
         {
-            PineconeIndexState.Initializing => "Initializing"u8,
-            PineconeIndexState.ScalingUp => "ScalingUp"u8,
-            PineconeIndexState.ScalingDown => "ScalingDown"u8,
-            PineconeIndexState.Terminating => "Terminating"u8,
-            PineconeIndexState.Ready => "Ready"u8,
+            IndexState.Initializing => "Initializing"u8,
+            IndexState.ScalingUp => "ScalingUp"u8,
+            IndexState.ScalingDown => "ScalingDown"u8,
+            IndexState.Terminating => "Terminating"u8,
+            IndexState.Ready => "Ready"u8,
             _ => ThrowHelper.ThrowArgumentOutOfRangeException<byte[]>("Unknown enum value")
         });
     }
 }
 
-// Co-implemented by Bing Chat :D
-public class PineconeIndexNamespaceArrayConverter : JsonConverter<PineconeIndexNamespace[]>
+// Co-implemented with Bing Chat :D
+public class IndexNamespaceArrayConverter : JsonConverter<IndexNamespace[]>
 {
-    public override PineconeIndexNamespace[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override IndexNamespace[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.StartObject)
         {
@@ -74,7 +72,7 @@ public class PineconeIndexNamespaceArrayConverter : JsonConverter<PineconeIndexN
         }
 
         // TODO: Remove intermediate allocation
-        var buffer = new List<PineconeIndexNamespace>();
+        var buffer = new List<IndexNamespace>();
 
         while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
         {
@@ -111,7 +109,7 @@ public class PineconeIndexNamespaceArrayConverter : JsonConverter<PineconeIndexN
         return buffer.ToArray();
     }
 
-    public override void Write(Utf8JsonWriter writer, PineconeIndexNamespace[] value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, IndexNamespace[] value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
 

@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>net7.0;net8.0</TargetFrameworks>
     <WarningsAsErrors>nullable</WarningsAsErrors>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>preview</LangVersion>
@@ -14,6 +14,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="RangeExtensions" Version="2.1.1" />
+    <PackageReference Include="System.Text.Json" Version="8.0.0-preview.3.23174.8" />
     <PackageReference Include="Google.Protobuf" Version="3.22.1" />
     <PackageReference Include="Grpc.Net.Client" Version="2.52.0" />
     <PackageReference Include="Grpc.Net.ClientFactory" Version="2.52.0" />
@@ -23,8 +24,12 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <Protobuf Include="..\deps\pinecone-client\client_sdk\src\proto\vector_service.proto" GrpcServices="Client" Link="Grpc\Protos\vector_service.proto">
-      <SourceUrl>https://raw.githubusercontent.com/pinecone-io/pinecone-client/main/client_sdk/src/proto/vector_service.proto</SourceUrl>
+    <Protobuf
+      Include="..\deps\pinecone-client\client_sdk\src\proto\vector_service.proto"
+      GrpcServices="Client"
+      Access="Internal"
+      Link="Grpc\Protos\vector_service.proto">
+        <SourceUrl>https://raw.githubusercontent.com/pinecone-io/pinecone-client/main/client_sdk/src/proto/vector_service.proto</SourceUrl>
     </Protobuf>
   </ItemGroup>
 </Project>

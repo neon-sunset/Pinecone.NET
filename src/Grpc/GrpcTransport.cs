@@ -24,7 +24,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 
     public static GrpcTransport Create(string host, string apiKey) => new(host, apiKey);
 
-    public async Task<PineconeIndexStats> DescribeStats(MetadataMap? filter = null)
+    public async Task<IndexStats> DescribeStats(MetadataMap? filter = null)
     {
         var request = new DescribeIndexStatsRequest();
         if (filter != null)
@@ -39,6 +39,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
     public async Task<ScoredVector[]> Query(
         string? id,
         float[]? values,
+        SparseVector? sparseValues,
         uint topK,
         string? indexNamespace = null,
         bool includeValues = true,
@@ -52,14 +53,19 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
             IncludeValues = includeValues
         };
 
-        if (string.IsNullOrWhiteSpace(id))
+        if (id != null)
         {
-            Guard.IsNotNull(values);
+            request.Id = id;
+        }
+        else if (values != null || sparseValues != null)
+        {
             request.Vector.OverwriteWith(values);
+            request.SparseVector = sparseValues?.ToProtoSparseValues();
         }
         else
         {
-            request.Id = id;
+            ThrowHelper.ThrowArgumentException(
+                nameof(values), "At least one of the following parameters must be non-null: id, values, sparseValues");
         }
 
         using var call = Grpc.QueryAsync(request, Auth);
@@ -75,7 +81,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         return vectors;
     }
 
-    public async Task<uint> Upsert(IEnumerable<PineconeVector> vectors, string? indexNamespace = null)
+    public async Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null)
     {
         var request = new UpsertRequest { Namespace = indexNamespace ?? "" };
         request.Vectors.AddRange(vectors.Select(v => v.ToProtoVector()));
@@ -84,7 +90,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         return (await call).UpsertedCount;
     }
 
-    public async Task Update(PineconeVector vector, string? indexNamespace = null)
+    public async Task Update(Vector vector, string? indexNamespace = null)
     {
         var request = new UpdateRequest
         {
@@ -99,7 +105,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         _ = await call;
     }
 
-    public async Task<Dictionary<string, PineconeVector>> Fetch(
+    public async Task<Dictionary<string, Vector>> Fetch(
         IEnumerable<string> ids, string? indexNamespace = null)
     {
         var request = new FetchRequest

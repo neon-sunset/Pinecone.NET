@@ -1,7 +1,6 @@
-using System.Diagnostics;
 using System.Net.Http.Json;
-using System.Runtime.CompilerServices;
 using CommunityToolkit.Diagnostics;
+using Pinecone.Grpc;
 using Pinecone.Rest;
 
 namespace Pinecone;
@@ -28,15 +27,15 @@ public sealed class PineconeClient : IDisposable
         Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
     }
 
-    public async Task<PineconeIndexName[]> ListIndexes()
+    public async Task<IndexName[]> ListIndexes()
     {
         var response = await Http.GetFromJsonAsync("/databases", SerializerContext.Default.StringArray);
         if (response is null or { Length: 0 })
         {
-            return Array.Empty<PineconeIndexName>();
+            return Array.Empty<IndexName>();
         }
 
-        var indexes = new PineconeIndexName[response.Length];
+        var indexes = new IndexName[response.Length];
         foreach (var i in 0..response.Length)
         {
             indexes[i] = new(response[i]);
@@ -46,7 +45,7 @@ public sealed class PineconeClient : IDisposable
     }
 
     public async Task CreateIndex(
-        PineconeIndexDetails indexDetails,
+        IndexDetails indexDetails,
         MetadataMap? metadataConfig = null,
         string? sourceCollection = null)
     {
@@ -54,18 +53,20 @@ public sealed class PineconeClient : IDisposable
         var response = await Http.PostAsJsonAsync(
             "/databases", request, SerializerContext.Default.CreateIndexRequest);
 
-        await CheckStatusCode(response);
+        await response.CheckStatusCode();
     }
 
-    public async Task<PineconeIndex<TTransport>> GetIndex<TTransport>(PineconeIndexName name)
+    public Task<Index<GrpcTransport>> GetIndex(IndexName name) => GetIndex<GrpcTransport>(name);
+
+    public async Task<Index<TTransport>> GetIndex<TTransport>(IndexName name)
         where TTransport : struct, ITransport<TTransport>
     {
         var response = await Http.GetFromJsonAsync(
             $"/databases/{name.Value}",
-            typeof(PineconeIndex<TTransport>),
+            typeof(Index<TTransport>),
             SerializerContext.Default) ?? throw new HttpRequestException("GetIndex request has failed.");
 
-        var index = (PineconeIndex<TTransport>)response;
+        var index = (Index<TTransport>)response;
         var host = index.Status.Host;
         var apiKey = Http.DefaultRequestHeaders.GetValues(Constants.RestApiKey).First();
 
@@ -73,29 +74,17 @@ public sealed class PineconeClient : IDisposable
         return index;
     }
 
-    public async Task ConfigureIndex(PineconeIndexName name, int replicas, string podType)
+    public async Task ConfigureIndex(IndexName name, int replicas, string podType)
     {
         var request = new ConfigureIndexRequest { Replicas = replicas, PodType = podType };
         var response = await Http.PatchAsJsonAsync(
             $"/databases/{name.Value}", request, SerializerContext.Default.ConfigureIndexRequest);
 
-        await CheckStatusCode(response);
+        await response.CheckStatusCode();
     }
 
-    public async Task DeleteIndex(PineconeIndexName name) =>
-        await CheckStatusCode(await Http.DeleteAsync($"/databases/{name.Value}"));
+    public async Task DeleteIndex(IndexName name) =>
+        await (await Http.DeleteAsync($"/databases/{name.Value}")).CheckStatusCode();
 
     public void Dispose() => Http.Dispose();
-
-    private static ValueTask CheckStatusCode(HttpResponseMessage response, [CallerMemberName] string requestName = "")
-    {
-        return response.IsSuccessStatusCode ? ValueTask.CompletedTask : ThrowOnFailedResponse(response, requestName);
-
-        [StackTraceHidden]
-        static async ValueTask ThrowOnFailedResponse(HttpResponseMessage response, string requestName)
-        {
-            throw new HttpRequestException($"{requestName} request has failed. " +
-                $"Code: {response.StatusCode}. Message: {await response.Content.ReadAsStringAsync()}");
-        }
-    }
 }

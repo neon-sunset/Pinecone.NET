@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Pinecone.Rest;
 
-internal sealed record CreateIndexRequest : PineconeIndexDetails
+internal sealed record CreateIndexRequest : IndexDetails
 {
     [JsonPropertyName("metadata_config")]
     public MetadataMap? MetadataConfig { get; init; }
@@ -11,7 +11,7 @@ internal sealed record CreateIndexRequest : PineconeIndexDetails
     public string? SourceCollection { get; init; }
 
     public static CreateIndexRequest From(
-        PineconeIndexDetails index,
+        IndexDetails index,
         MetadataMap? metadataConfig,
         string? sourceCollection) => new()
     {
@@ -41,32 +41,24 @@ internal readonly record struct DescribeStatsRequest
 
 internal record QueryRequest
 {
-    public string? Id { get; init; }
-
-    public float[]? Vector { get; init; }
-
-    public SparseValues? SparseVector { get; init; }
-
+    public string? Id { get; set; }
+    public float[]? Vector { get; set; }
+    public SparseVector? SparseVector { get; set; }
     public required uint TopK { get; init; }
-
     public required string Namespace { get; init; }
-
     public required bool IncludeValues { get; init; }
-
     public required bool IncludeMetadata { get; init; }
 }
 
 internal readonly record struct QueryResponse
 {
     public required ScoredVector[] Matches { get; init; }
-
     public required string Namespace { get; init; }
 }
 
 internal readonly record struct UpsertRequest
 {
-    public required PineconeVector[] Vectors { get; init; }
-
+    public required Vector[] Vectors { get; init; }
     public required string Namespace { get; init; }
 }
 
@@ -75,15 +67,14 @@ internal readonly record struct UpsertResponse
     public required uint UpsertedCount { get; init; }
 }
 
-internal record UpdateRequest : PineconeVector
+internal record UpdateRequest : Vector
 {
     /// <summary>Make sure to not set regular Metadata prop when serializing this</summary>
     public MetadataMap? SetMetadata { get; init; }
-
     public required string Namespace { get; init; }
 
     public static UpdateRequest From(
-        PineconeVector vector,
+        Vector vector,
         string? indexNamespace) => new()
     {
         Id = vector.Id,
@@ -96,18 +87,14 @@ internal record UpdateRequest : PineconeVector
 
 internal readonly record struct FetchResponse
 {
-    public required Dictionary<string, PineconeVector> Vectors { get; init; }
-
+    public required Dictionary<string, Vector> Vectors { get; init; }
     public required string Namespace { get; init; }
 }
 
 internal readonly record struct DeleteRequest
 {
     public string[]? Ids { get; init; }
-
     public required bool DeleteAll { get; init; }
-
     public MetadataMap? Filter { get; init; }
-
     public required string Namespace { get; init; }
 }

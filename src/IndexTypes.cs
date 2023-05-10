@@ -3,26 +3,13 @@ using Pinecone.Rest;
 
 namespace Pinecone;
 
-public readonly record struct PineconeIndexName(string Value)
+public readonly record struct IndexName(string Value)
 {
-    public static implicit operator string(PineconeIndexName value) => value.Value;
-    public static implicit operator PineconeIndexName(string value) => new(value);
+    public static implicit operator string(IndexName value) => value.Value;
+    public static implicit operator IndexName(string value) => new(value);
 }
 
-public sealed partial record PineconeIndex<TTransport>
-    where TTransport : struct, ITransport<TTransport>
-{
-    [JsonPropertyName("database")]
-    public required PineconeIndexDetails Details { get; init; }
-
-    [JsonPropertyName("status")]
-    public required PineconeIndexStatus Status { get; init; }
-
-    [JsonPropertyName("metadata_config")]
-    public Dictionary<string, string[]>? MetadataConfig { get; init; }
-}
-
-public record PineconeIndexDetails
+public record IndexDetails
 {
     [JsonPropertyName("name")]
     public required string Name { get; init; }
@@ -31,7 +18,7 @@ public record PineconeIndexDetails
     public required long Dimension { get; init; }
 
     [JsonPropertyName("metric")]
-    public required PineconeMetric Metric { get; init; }
+    public required Metric Metric { get; init; }
 
     [JsonPropertyName("pods")]
     public long? Pods { get; init; }
@@ -43,21 +30,21 @@ public record PineconeIndexDetails
     public long? Replicas { get; init; }
 }
 
-[JsonConverter(typeof(PineconeMetricConverter))]
-public enum PineconeMetric
+[JsonConverter(typeof(MetricConverter))]
+public enum Metric
 {
     Cosine = 0,
     DotProduct = 1,
     Euclidean = 2,
 }
 
-public record PineconeIndexStatus
+public record IndexStatus
 {
     [JsonPropertyName("ready")]
     public required bool IsReady { get; init; }
 
     [JsonPropertyName("state")]
-    public required PineconeIndexState State { get; init; }
+    public required IndexState State { get; init; }
 
     [JsonPropertyName("host")]
     public required string Host { get; init; }
@@ -69,8 +56,8 @@ public record PineconeIndexStatus
     public string?[]? Crashed { get; init; }
 }
 
-[JsonConverter(typeof(PineconeIndexStateConverter))]
-public enum PineconeIndexState
+[JsonConverter(typeof(IndexStateConverter))]
+public enum IndexState
 {
     Initializing = 0,
     ScalingUp = 1,
@@ -79,10 +66,10 @@ public enum PineconeIndexState
     Ready = 4
 }
 
-public record PineconeIndexStats
+public record IndexStats
 {
-    [JsonConverter(typeof(PineconeIndexNamespaceArrayConverter))]
-    public required PineconeIndexNamespace[] Namespaces { get; init; }
+    [JsonConverter(typeof(IndexNamespaceArrayConverter))]
+    public required IndexNamespace[] Namespaces { get; init; }
 
     public required uint Dimension { get; init; }
 
@@ -91,7 +78,7 @@ public record PineconeIndexStats
     public required uint TotalVectorCount { get; init; }
 }
 
-public readonly record struct PineconeIndexNamespace
+public readonly record struct IndexNamespace
 {
     public required string Name { get; init; }
 

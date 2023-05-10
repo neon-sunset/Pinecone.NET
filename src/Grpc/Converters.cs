@@ -1,13 +1,12 @@
 using System.Globalization;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using CommunityToolkit.Diagnostics;
 using Google.Protobuf.Collections;
 using Google.Protobuf.WellKnownTypes;
 
 namespace Pinecone.Grpc;
 
-internal static class Extensions
+internal static class Converters
 {
     private static class FieldAccessors<T> where T : unmanaged
     {
@@ -46,9 +45,9 @@ internal static class Extensions
         };
     }
 
-    public static Vector ToProtoVector(this PineconeVector source)
+    public static global::Vector ToProtoVector(this Vector source)
     {
-        var protoVector = new Vector
+        var protoVector = new global::Vector
         {
             Id = source.Id,
             SparseValues = source.SparseValues?.ToProtoSparseValues(),
@@ -59,37 +58,36 @@ internal static class Extensions
         return protoVector;
     }
 
-    public static global::SparseValues ToProtoSparseValues(this SparseValues source)
+    public static SparseValues ToProtoSparseValues(this SparseVector source)
     {
-        var protoSparseValues = new global::SparseValues();
+        var protoSparseValues = new SparseValues();
         protoSparseValues.Indices.OverwriteWith(source.Indices);
         protoSparseValues.Values.OverwriteWith(source.Values);
 
         return protoSparseValues;
     }
 
-    public static PineconeIndexStats ToPublicType(this DescribeIndexStatsResponse source) => new()
+    public static IndexStats ToPublicType(this DescribeIndexStatsResponse source) => new()
     {
-        Namespaces = source.Namespaces
-            .Select(kvp => new PineconeIndexNamespace
+        Namespaces = source.Namespaces.Count > 0 ?
+            source.Namespaces.Select(kvp => new IndexNamespace
             {
                 Name = kvp.Key,
                 VectorCount = kvp.Value.VectorCount
-            })
-            .ToArray(),
+            }).ToArray() : Array.Empty<IndexNamespace>(),
         Dimension = source.Dimension,
         IndexFullness = source.IndexFullness,
         TotalVectorCount = source.TotalVectorCount
     };
 
-    public static PineconeVector ToPublicType(this Vector source)
+    public static Vector ToPublicType(this global::Vector source)
     {
-        return new PineconeVector
+        return new Vector
         {
             Id = source.Id,
             Values = source.Values.AsArray(),
             SparseValues = source.SparseValues?.Indices.Count > 0
-                ? new SparseValues
+                ? new SparseVector
                 {
                     Indices = source.SparseValues.Indices.AsArray(),
                     Values = source.SparseValues.Values.AsArray()
@@ -151,8 +149,10 @@ internal static class Extensions
         return (T[])FieldAccessors<T>.ArrayField.GetValue(source)!;
     }
 
-    public static void OverwriteWith<T>(this RepeatedField<T> target, T[] source) where T : unmanaged
+    public static void OverwriteWith<T>(this RepeatedField<T> target, T[]? source) where T : unmanaged
     {
+        if (source is null) return;
+
         FieldAccessors<T>.ArrayField.SetValue(target, source);
         FieldAccessors<T>.CountField.SetValue(target, source.Length);
     }

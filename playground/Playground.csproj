@@ -5,7 +5,6 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PublishAot>true</PublishAot>
     <StripSymbols>true</StripSymbols>
   </PropertyGroup>
 
@@ -14,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.5" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="0.13.277.1-preview" />
   </ItemGroup>
 
