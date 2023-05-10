@@ -40,7 +40,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         bool includeValues = false,
         bool includeMetadata = false)
     {
-        if (id is null || values is null || sparseValues is null)
+        if (id is null && values is null && sparseValues is null)
         {
             ThrowHelper.ThrowArgumentException(
                 "At least one of the following parameters must be non-null: id, values, sparseValues");

@@ -49,7 +49,7 @@ Console.WriteLine(index);
 // Which is a strongly typed definition of Pinecone's metadata representation
 var metadata = new MetadataMap
 {
-    ["number"] = 1337, // Numbers are normalized to f64 as per Pinecone's spec
+    ["number"] = 1337, // Numbers are normalized to fp64 as per Pinecone's spec
     ["boolean"] = true,
     ["string"] = "Hello Pinecone!"
 };
@@ -74,7 +74,12 @@ var addedCount = await index.Upsert(new[]
     }
 });
 
-Console.WriteLine(addedCount);
+// Fetch the vector we just added
+var fetched = await index.Fetch(new[] { "helloworld" });
+foreach (var kvp in fetched)
+{
+    Console.WriteLine(kvp);
+}
 
 // Query the index for the vector we just added and include the metadata (false by default)
 // The result is a list of scored vectors with their values included (true by default)
@@ -83,3 +88,6 @@ foreach (var vector in results)
 {
     Console.WriteLine(vector);
 }
+
+// Delete the range of vectors
+await index.Delete(new[] { "helloworld" });
