@@ -59,7 +59,7 @@ public sealed class PineconeClient : IDisposable
     public Task<Index<GrpcTransport>> GetIndex(IndexName name) => GetIndex<GrpcTransport>(name);
 
     public async Task<Index<TTransport>> GetIndex<TTransport>(IndexName name)
-        where TTransport : struct, ITransport<TTransport>
+        where TTransport : ITransport<TTransport>
     {
         var response = await Http.GetFromJsonAsync(
             $"/databases/{name.Value}",
