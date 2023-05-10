@@ -9,6 +9,7 @@ Pinecone.NET is a C# library for the Pinecone vector database. It aims to provid
 - Sparse-dense vectors
 - Efficient vector serialization
 - Metadata support
+- NativeAOT compatibility
 
 ## Installation
 
