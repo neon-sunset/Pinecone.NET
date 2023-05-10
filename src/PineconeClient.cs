@@ -44,6 +44,9 @@ public sealed class PineconeClient : IDisposable
         return indexes;
     }
 
+    public Task CreateIndex(string name, uint dimension, Metric metric) =>
+        CreateIndex(new IndexDetails { Name = name, Dimension = dimension, Metric = metric });
+
     public async Task CreateIndex(
         IndexDetails indexDetails,
         MetadataMap? metadataConfig = null,
