@@ -21,7 +21,7 @@ jobs:
         dotnet-version: |
           7.0.x
           8.0.x
-        prerelease: true
+        include-prerelease: true
     - name: CI/CD
       shell: bash
       run: |
