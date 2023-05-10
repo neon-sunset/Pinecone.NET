@@ -1,4 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Authors>neon-sunset</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/neon-sunset/Pinecone.NET</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/neon-sunset/Pinecone.NET</PackageProjectUrl>
+    <PackageTags>Pinecone;PineconeIo;Vector;Database;</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Pinecone.NET is a C# library for the Pinecone vector database.
+It lets you create and query Pinecone indexes and includes gRPC integration.</Description>
+  </PropertyGroup>
+
   <PropertyGroup>
     <TargetFrameworks>net7.0;net8.0</TargetFrameworks>
     <WarningsAsErrors>nullable</WarningsAsErrors>
@@ -7,8 +19,13 @@
     <Features>strict</Features>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.1.0" />
+    <PackageReference Include="MinVer" Version="4.3.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="PolySharp" Version="1.13.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -23,13 +40,11 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
   </ItemGroup>
+
   <ItemGroup>
-    <Protobuf
-      Include="..\deps\pinecone-client\client_sdk\src\proto\vector_service.proto"
-      GrpcServices="Client"
-      Access="Internal"
-      Link="Grpc\Protos\vector_service.proto">
+    <Protobuf Include="..\deps\pinecone-client\client_sdk\src\proto\vector_service.proto" GrpcServices="Client" Access="Internal" Link="Grpc\Protos\vector_service.proto">
         <SourceUrl>https://raw.githubusercontent.com/pinecone-io/pinecone-client/main/client_sdk/src/proto/vector_service.proto</SourceUrl>
     </Protobuf>
   </ItemGroup>
+
 </Project>
