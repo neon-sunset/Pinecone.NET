@@ -14,6 +14,10 @@ Pinecone.NET is a C# library for the Pinecone vector database. It aims to provid
 
 `dotnet add package Pinecone.NET` or `Install-Package Pinecone.NET`
 
+## Usage
+
+You can find the example usage scenario in [playground](playground/Program.cs).
+
 ## Contributing
 
 Contributions are welcome! Feel free open an issue or a PR.
