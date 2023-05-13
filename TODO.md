@@ -15,14 +15,14 @@
 - [x] Switch from Golang library .proto contract to the Rust one because the former has a dependency/import graph
     which hits an edge case in protoc-csharp plugin preventing it from being usable
 - [x] Implement support for Pinecone collections
-- [ ] Add CI/CD pipeline (dotnet-releaser)
+- [x] Add CI/CD pipeline (dotnet-releaser)
 - [x] Do final cleanup
-- [ ] Co-write README and docs with Bing Chat
-- [ ] Publish nuget (does it need an icon?)
+- [x] Write README
+- [x] Publish nuget
 - [ ] Test coverage
 
 ## Nice to have
 
 - [ ] Add an extension to create an index and then wait for it to be ready to use, maybe add guards before sending requests?
 - [ ] Restructure the solution and add Pinecone.SemanticKernel project for long-term memory integration? Or is it better to directly contribute it to SK?
-- [ ] Consider putting the handling of "MetadataValue as DU" into a dedicated place instead of switches in multiple places. First-class DUs in C# when
+- [ ] Consider putting the handling of "MetadataValue as DU" into a dedicated place instead of switches in multiple places. First-class DUs in C# when?
