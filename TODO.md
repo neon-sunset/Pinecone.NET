@@ -14,7 +14,7 @@
 ~~- [ ] Switch from hand-written approach to code generation for REST API~~
 - [x] Switch from Golang library .proto contract to the Rust one because the former has a dependency/import graph
     which hits an edge case in protoc-csharp plugin preventing it from being usable
-- [ ] Implement support for Pinecone collections
+- [x] Implement support for Pinecone collections
 - [ ] Add CI/CD pipeline (dotnet-releaser)
 - [x] Do final cleanup
 - [ ] Co-write README and docs with Bing Chat
