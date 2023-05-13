@@ -39,6 +39,12 @@ internal readonly record struct DescribeStatsRequest
     public MetadataMap? Filter { get; init; }
 }
 
+internal readonly record struct CreateCollectionRequest
+{
+    public required string Name { get; init; }
+    public required string Source { get; init; }
+}
+
 internal record QueryRequest
 {
     public string? Id { get; set; }

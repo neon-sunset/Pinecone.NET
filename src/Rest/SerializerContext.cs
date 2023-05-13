@@ -14,6 +14,8 @@ namespace Pinecone.Rest;
 [JsonSerializable(typeof(CreateIndexRequest))]
 [JsonSerializable(typeof(ConfigureIndexRequest))]
 [JsonSerializable(typeof(DescribeStatsRequest))]
+[JsonSerializable(typeof(CreateCollectionRequest))]
+[JsonSerializable(typeof(CollectionDetails))]
 [JsonSerializable(typeof(QueryRequest))]
 [JsonSerializable(typeof(QueryResponse))]
 [JsonSerializable(typeof(UpsertRequest))]

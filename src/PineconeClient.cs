@@ -89,5 +89,42 @@ public sealed class PineconeClient : IDisposable
     public async Task DeleteIndex(IndexName name) =>
         await (await Http.DeleteAsync($"/databases/{name.Value}")).CheckStatusCode();
 
+    public async Task<CollectionName[]> ListCollections()
+    {
+        var response = await Http.GetFromJsonAsync("/collections", SerializerContext.Default.StringArray);
+        if (response is null or { Length: 0 })
+        {
+            return Array.Empty<CollectionName>();
+        }
+
+        var collections = new CollectionName[response.Length];
+        foreach (var i in 0..response.Length)
+        {
+            collections[i] = new(response[i]);
+        }
+
+        return collections;
+    }
+
+    public async Task CreateCollection(CollectionName name, IndexName source)
+    {
+        var request = new CreateCollectionRequest { Name = name, Source = source };
+        var response = await Http.PostAsJsonAsync(
+            "/collections", request, SerializerContext.Default.CreateCollectionRequest);
+
+        await response.CheckStatusCode();
+    }
+
+    public async Task<CollectionDetails> DescribeCollection(CollectionName name)
+    {
+        return await Http.GetFromJsonAsync(
+            $"/collections/{name.Value}",
+            SerializerContext.Default.CollectionDetails)
+                ?? ThrowHelpers.JsonException<CollectionDetails>();
+    }
+
+    public async Task DeleteCollection(CollectionName name) =>
+        await (await Http.DeleteAsync($"/collections/{name.Value}")).CheckStatusCode();
+
     public void Dispose() => Http.Dispose();
 }
