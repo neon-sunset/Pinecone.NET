@@ -23,10 +23,10 @@ using Pinecone;
 // Initialize the client with your API key and environment
 var apiKey = "<your-api-key>";
 var environment = "<your-environment>"; // for example us-east4-gcp
-using var pineconeClient = new PineconeClient(apiKey, environment);
+using var pinecone = new PineconeClient(apiKey, environment);
 
 // List all indexes
-var indexes = await pineconeClient.ListIndexes();
+var indexes = await pinecone.ListIndexes();
 
 // Create a new index if it doesn't exist
 var indexName = "myIndex";
@@ -36,12 +36,15 @@ if (!indexes.Contains(indexName))
 }
 
 // Get an index (uses gRPC transport by default)
-using var index = await pineconeClient.GetIndex(indexName);
+using var index = await pinecone.GetIndex(indexName);
 
 // Get an index that uses specific transport
 using Pinecone.Rest;
 ...
-using var index = await pineconeClient.GetIndex<RestTransport>(indexName);
+using var index = await pinecone.GetIndex<RestTransport>(indexName);
+
+// Configure an index
+await pinecone.ConfigureIndex(indexName, replicas: 2, podType: "p2");
 
 // Delete an index
 await pineconeClient.DeleteIndex(indexName);
