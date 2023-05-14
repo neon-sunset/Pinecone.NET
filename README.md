@@ -108,7 +108,7 @@ await pinecone.CreateCollection("myCollection", "myIndex");
 var collectionDetails = await pinecone.DescribeCollection("myCollection");
 
 // Delete a collection
-await pineconeClient.DeleteCollection("myCollection");
+await pinecone.DeleteCollection("myCollection");
 ```
 
 ## Contributing
