@@ -41,13 +41,15 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         float[]? values,
         SparseVector? sparseValues,
         uint topK,
-        string? indexNamespace = null,
-        bool includeValues = true,
-        bool includeMetadata = false)
+        MetadataMap? filter,
+        string? indexNamespace,
+        bool includeValues,
+        bool includeMetadata)
     {
         var request = new QueryRequest()
         {
             TopK = topK,
+            Filter = filter?.ToProtoStruct(),
             Namespace = indexNamespace ?? "",
             IncludeMetadata = includeMetadata,
             IncludeValues = includeValues

@@ -10,6 +10,7 @@ public interface ITransport<T> : IDisposable
         float[]? values,
         SparseVector? sparseValues,
         uint topK,
+        MetadataMap? filter,
         string? indexNamespace,
         bool includeValues,
         bool includeMetadata);
