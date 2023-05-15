@@ -36,9 +36,10 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         float[]? values,
         SparseVector? sparseValues,
         uint topK,
-        string? indexNamespace = null,
-        bool includeValues = false,
-        bool includeMetadata = false)
+        MetadataMap? filter,
+        string? indexNamespace,
+        bool includeValues,
+        bool includeMetadata)
     {
         if (id is null && values is null && sparseValues is null)
         {
@@ -52,6 +53,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
             Vector = values,
             SparseVector = sparseValues,
             TopK = topK,
+            Filter = filter,
             Namespace = indexNamespace ?? "",
             IncludeMetadata = includeMetadata,
             IncludeValues = includeValues,

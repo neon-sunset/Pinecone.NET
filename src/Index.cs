@@ -31,22 +31,40 @@ public sealed partial record Index<TTransport> : IDisposable
     public Task<ScoredVector[]> Query(
         string id,
         uint topK,
+        MetadataMap? filter = null,
         string? indexNamespace = null,
         bool includeValues = true,
         bool includeMetadata = false)
     {
-        return Transport.Query(id, null, null, topK, indexNamespace, includeValues, includeMetadata);
+        return Transport.Query(
+            id: id,
+            values: null,
+            sparseValues: null,
+            topK: topK,
+            filter: filter,
+            indexNamespace: indexNamespace,
+            includeValues: includeValues,
+            includeMetadata: includeMetadata);
     }
 
     public Task<ScoredVector[]> Query(
         float[] values,
         uint topK,
+        MetadataMap? filter = null,
         SparseVector? sparseValues = null,
         string? indexNamespace = null,
         bool includeValues = true,
         bool includeMetadata = false)
     {
-        return Transport.Query(null, values, sparseValues, topK, indexNamespace, includeValues, includeMetadata);
+        return Transport.Query(
+            id: null,
+            values: values,
+            sparseValues: sparseValues,
+            topK: topK,
+            filter: filter,
+            indexNamespace: indexNamespace,
+            includeValues: includeValues,
+            includeMetadata: includeMetadata);
     }
 
     public Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null)

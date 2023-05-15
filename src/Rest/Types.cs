@@ -51,6 +51,7 @@ internal record QueryRequest
     public float[]? Vector { get; set; }
     public SparseVector? SparseVector { get; set; }
     public required uint TopK { get; init; }
+    public MetadataMap? Filter { get; init; }
     public required string Namespace { get; init; }
     public required bool IncludeValues { get; init; }
     public required bool IncludeMetadata { get; init; }
