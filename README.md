@@ -88,7 +88,6 @@ var filter = new MetadataMap
         ["$in"] = new MetadataValue[] { "documentary", "action" }
     }
 };
-
 var scored = await index.Query("birds", topK: 10, filter);
 
 // Delete vectors by vector IDs
