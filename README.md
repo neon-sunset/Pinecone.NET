@@ -80,6 +80,17 @@ var scored = await index.Query("vector1", topK: 10);
 var vector = new[] { 0.1f, 0.2f, 0.3f, ... };
 var scored = await index.Query(vector, topK: 10);
 
+// Query scored vectors by ID with metadata filter
+var filter = new MetadataMap
+{
+    ["genre"] = new MetadataMap
+    {
+        ["$in"] = new MetadataValue[] { "documentary", "action" }
+    }
+};
+
+var scored = await index.Query("birds", topK: 10, filter);
+
 // Delete vectors by vector IDs
 await index.Delete(new[] { "vector1" });
 
