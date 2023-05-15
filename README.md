@@ -23,6 +23,7 @@ using Pinecone;
 // Initialize the client with your API key and environment
 var apiKey = "<your-api-key>";
 var environment = "<your-environment>"; // for example us-east4-gcp
+
 using var pinecone = new PineconeClient(apiKey, environment);
 
 // List all indexes
@@ -32,7 +33,7 @@ var indexes = await pinecone.ListIndexes();
 var indexName = "myIndex";
 if (!indexes.Contains(indexName))
 {
-    await pineconeClient.CreateIndex(indexName, 1536, Metric.Cosine);
+    await pinecone.CreateIndex(indexName, 1536, Metric.Cosine);
 }
 
 // Get an index (uses gRPC transport by default)
@@ -47,7 +48,7 @@ using var index = await pinecone.GetIndex<RestTransport>(indexName);
 await pinecone.ConfigureIndex(indexName, replicas: 2, podType: "p2");
 
 // Delete an index
-await pineconeClient.DeleteIndex(indexName);
+await pinecone.DeleteIndex(indexName);
 ```
 
 Working with vectors
@@ -70,14 +71,14 @@ var vectors = new[]
 await index.Upsert(vectors);
 
 // Fetch vectors by IDs
-var fetchedVectors = await index.Fetch(new[] { "vector1" });
+var fetched = await index.Fetch(new[] { "vector1" });
 
 // Query scored vectors by ID
-var results = await index.Query("vector1", topK: 10);
+var scored = await index.Query("vector1", topK: 10);
 
 // Query scored vectors by a new, previously unseen vector
 var vector = new[] { 0.1f, 0.2f, 0.3f, ... };
-var results = await index.Query(vector, topK: 10);
+var scored = await index.Query(vector, topK: 10);
 
 // Delete vectors by vector IDs
 await index.Delete(new[] { "vector1" });
@@ -108,7 +109,7 @@ var collections = await pinecone.ListCollections();
 await pinecone.CreateCollection("myCollection", "myIndex");
 
 // Describe a collection
-var collectionDetails = await pinecone.DescribeCollection("myCollection");
+var details = await pinecone.DescribeCollection("myCollection");
 
 // Delete a collection
 await pinecone.DeleteCollection("myCollection");
