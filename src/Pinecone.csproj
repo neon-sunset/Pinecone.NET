@@ -32,7 +32,7 @@ It lets you create and query Pinecone indexes and includes gRPC integration.</De
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="RangeExtensions" Version="2.1.1" />
-    <PackageReference Include="System.Text.Json" Version="8.0.0-preview.3.23174.8" />
+    <PackageReference Include="System.Text.Json" Version="8.0.0-preview.4.23259.5" />
     <PackageReference Include="Google.Protobuf" Version="3.23.0" />
     <PackageReference Include="Grpc.Net.Client" Version="2.53.0" />
     <PackageReference Include="Grpc.Net.ClientFactory" Version="2.53.0" />
