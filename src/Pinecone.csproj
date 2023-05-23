@@ -8,8 +8,8 @@
     <PackageProjectUrl>https://github.com/neon-sunset/Pinecone.NET</PackageProjectUrl>
     <PackageTags>Pinecone;PineconeIo;Vector;Database;</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Description>Pinecone.NET is a C# library for the Pinecone vector database.
-It lets you create and query Pinecone indexes and includes gRPC integration.</Description>
+    <Description>Pinecone.NET is a fully-fledged C# library for the Pinecone vector database.
+  It aims to provide identical functionality to the official Python and Rust libraries.</Description>
   </PropertyGroup>
 
   <PropertyGroup>

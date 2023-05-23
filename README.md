@@ -1,6 +1,6 @@
 # Pinecone.NET
 
-Pinecone.NET is a C# library for the Pinecone vector database. It aims to provide identical functionality to the official Python and Rust libraries.
+Pinecone.NET is a fully-fledged C# library for the Pinecone vector database. It aims to provide identical functionality to the official Python and Rust libraries.
 
 ## Features
 
@@ -21,8 +21,8 @@ Working with indexes
 using Pinecone;
 
 // Initialize the client with your API key and environment
-var apiKey = "<your-api-key>";
-var environment = "<your-environment>"; // for example us-east4-gcp
+var apiKey = "your-api-key";
+var environment = "your-environment"; // for example us-east4-gcp
 
 using var pinecone = new PineconeClient(apiKey, environment);
 
