@@ -15,6 +15,7 @@
   <PropertyGroup>
     <TargetFrameworks>net7.0;net8.0</TargetFrameworks>
     <WarningsAsErrors>nullable</WarningsAsErrors>
+    <IsAotCompatible>true</IsAotCompatible>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>preview</LangVersion>
     <Features>strict</Features>
