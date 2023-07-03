@@ -36,13 +36,8 @@ if (!indexes.Contains(indexName))
     await pinecone.CreateIndex(indexName, 1536, Metric.Cosine);
 }
 
-// Get an index (uses gRPC transport by default)
+// Get an index by name
 using var index = await pinecone.GetIndex(indexName);
-
-// Get an index that uses specific transport
-using Pinecone.Rest;
-...
-using var index = await pinecone.GetIndex<RestTransport>(indexName);
 
 // Configure an index
 await pinecone.ConfigureIndex(indexName, replicas: 2, podType: "p2");
