@@ -146,7 +146,13 @@ internal static class Converters
 
     public static T[] AsArray<T>(this RepeatedField<T> source) where T : unmanaged
     {
-        return (T[])FieldAccessors<T>.ArrayField.GetValue(source)!;
+        var buffer = (T[])FieldAccessors<T>.ArrayField.GetValue(source)!;
+        if (buffer.Length != source.Count)
+        {
+            buffer = buffer[..source.Count];
+        }
+
+        return buffer;
     }
 
     public static void OverwriteWith<T>(this RepeatedField<T> target, T[]? source) where T : unmanaged

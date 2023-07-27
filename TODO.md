@@ -23,6 +23,7 @@
 
 ## Nice to have
 
+- [ ] It appears the behavior of the gRPC stack has changed and inner `RepeatedField<T>` buffer is no longer created to the exact length of data received in the response. Analyze the implementation changes and consider options to reduce copying and allocations.
 - [ ] Add an extension to create an index and then wait for it to be ready to use, maybe add guards before sending requests?
 - [ ] Restructure the solution and add Pinecone.SemanticKernel project for long-term memory integration? Or is it better to directly contribute it to SK?
 - [ ] Consider putting the handling of "MetadataValue as DU" into a dedicated place instead of switches in multiple places. First-class DUs in C# when?
