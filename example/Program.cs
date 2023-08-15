@@ -1,4 +1,4 @@
-﻿using Azure.AI.OpenAI;
+using Azure.AI.OpenAI;
 using Pinecone;
 
 const string indexName = "your-index";
@@ -55,6 +55,9 @@ var priceRange = new MetadataMap
         ["$lte"] = 125
     }
 };
+
+// Partially update a vector (allows to update dense/sparse/metadata properties only)
+await index.Update("second", metadata: new() { ["price"] = 99 });
 
 // Query the index by embedding and metadata filter
 var results = await index.Query(

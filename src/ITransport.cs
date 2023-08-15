@@ -45,6 +45,12 @@ public interface ITransport<
         bool includeMetadata);
     Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null);
     Task Update(Vector vector, string? indexNamespace = null);
+    Task Update(
+        string id,
+        float[]? values = null,
+        SparseVector? sparseValues = null,
+        MetadataMap? metadata = null,
+        string? indexNamespace = null);
     Task<Dictionary<string, Vector>> Fetch(IEnumerable<string> ids, string? indexNamespace = null);
     Task Delete(IEnumerable<string> ids, string? indexNamespace = null);
     Task Delete(MetadataMap filter, string? indexNamespace = null);

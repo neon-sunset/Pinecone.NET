@@ -67,7 +67,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         else
         {
             ThrowHelper.ThrowArgumentException(
-                nameof(values), "At least one of the following parameters must be non-null: id, values, sparseValues");
+                "At least one of the following parameters must be non-null: id, values, sparseValues");
         }
 
         using var call = Grpc.QueryAsync(request, Auth);
@@ -92,16 +92,34 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         return (await call).UpsertedCount;
     }
 
-    public async Task Update(Vector vector, string? indexNamespace = null)
+    public Task Update(Vector vector, string? indexNamespace = null) => Update(
+        vector.Id,
+        vector.Values,
+        vector.SparseValues,
+        vector.Metadata,
+        indexNamespace);
+
+    public async Task Update(
+        string id,
+        float[]? values = null,
+        SparseVector? sparseValues = null,
+        MetadataMap? metadata = null,
+        string? indexNamespace = null)
     {
+        if (values is null && sparseValues is null && metadata is null)
+        {
+            ThrowHelper.ThrowArgumentException(
+                "At least one of the following parameters must be non-null: values, sparseValues, metadata");
+        }
+
         var request = new UpdateRequest
         {
-            Id = vector.Id,
-            SparseValues = vector.SparseValues?.ToProtoSparseValues(),
-            SetMetadata = vector.Metadata?.ToProtoStruct(),
+            Id = id,
+            SparseValues = sparseValues?.ToProtoSparseValues(),
+            SetMetadata = metadata?.ToProtoStruct(),
             Namespace = indexNamespace ?? ""
         };
-        request.Values.OverwriteWith(vector.Values);
+        request.Values.OverwriteWith(values);
 
         using var call = Grpc.UpdateAsync(request, Auth);
         _ = await call;

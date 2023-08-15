@@ -88,6 +88,32 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         await response.CheckStatusCode();
     }
 
+    public async Task Update(
+        string id,
+        float[]? values = null,
+        SparseVector? sparseValues = null,
+        MetadataMap? metadata = null,
+        string? indexNamespace = null)
+    {
+        if (values is null && sparseValues is null && metadata is null)
+        {
+            ThrowHelper.ThrowArgumentException(
+                "At least one of the following parameters must be non-null: values, sparseValues, metadata");
+        }
+
+        var request = new UpdateRequest
+        {
+            Id = id,
+            Values = values!,
+            SparseValues = sparseValues,
+            SetMetadata = metadata,
+            Namespace = indexNamespace ?? ""
+        };
+
+        var response = await Http.PostAsJsonAsync("/vectors/update", request, SerializerContext.Default.UpdateRequest);
+        await response.CheckStatusCode();
+    }
+
     public async Task<Dictionary<string, Vector>> Fetch(
         IEnumerable<string> ids, string? indexNamespace = null)
     {

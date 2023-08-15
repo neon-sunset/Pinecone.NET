@@ -81,6 +81,16 @@ public sealed partial record Index<TTransport> : IDisposable
         return Transport.Update(vector, indexNamespace);
     }
 
+    public Task Update(
+        string id,
+        float[]? values = null,
+        SparseVector? sparseValues = null,
+        MetadataMap? metadata = null,
+        string? indexNamespace = null)
+    {
+        return Transport.Update(id, values, sparseValues, metadata, indexNamespace);
+    }
+
     public Task<Dictionary<string, Vector>> Fetch(IEnumerable<string> ids, string? indexNamespace = null)
     {
         return Transport.Fetch(ids, indexNamespace);
