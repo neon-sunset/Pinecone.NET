@@ -1,8 +1,37 @@
+using System.Diagnostics.CodeAnalysis;
+using Pinecone.Grpc;
+using Pinecone.Rest;
+
 namespace Pinecone;
 
-public interface ITransport<T> : IDisposable
+public interface ITransport<
+#if NET7_0_OR_GREATER
+    T> : IDisposable
+#else
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T> : IDisposable
+#endif
 {
+#if NET7_0_OR_GREATER
     static abstract T Create(string host, string apiKey);
+#else
+    static T Create(string host, string apiKey)
+    {
+        if (typeof(T) == typeof(GrpcTransport))
+        {
+            return (T)(object)new GrpcTransport(host, apiKey);
+        }
+        else if (typeof(T) == typeof(RestTransport))
+        {
+            return (T)(object)new RestTransport(host, apiKey);
+        }
+        else
+        {
+            var instance = (T?)Activator.CreateInstance(typeof(T), host, apiKey);
+
+            return instance ?? throw new InvalidOperationException($"Unable to create instance of {typeof(T)}");
+        }
+    }
+#endif
 
     Task<IndexStats> DescribeStats(MetadataMap? filter = null);
     Task<ScoredVector[]> Query(

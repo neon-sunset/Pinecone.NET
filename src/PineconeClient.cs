@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Json;
 using CommunityToolkit.Diagnostics;
 using Pinecone.Grpc;
@@ -61,7 +62,12 @@ public sealed class PineconeClient : IDisposable
 
     public Task<Index<GrpcTransport>> GetIndex(IndexName name) => GetIndex<GrpcTransport>(name);
 
+#if NET7_0_OR_GREATER
     public async Task<Index<TTransport>> GetIndex<TTransport>(IndexName name)
+#else
+    public async Task<Index<TTransport>> GetIndex<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransport>(IndexName name)
+#endif
         where TTransport : ITransport<TTransport>
     {
         var response = await Http.GetFromJsonAsync(
@@ -73,7 +79,11 @@ public sealed class PineconeClient : IDisposable
         var host = index.Status.Host;
         var apiKey = Http.DefaultRequestHeaders.GetValues(Constants.RestApiKey).First();
 
+#if NET7_0_OR_GREATER
         index.Transport = TTransport.Create(host, apiKey);
+#else
+        index.Transport = ITransport<TTransport>.Create(host, apiKey);
+#endif
         return index;
     }
 

@@ -1,10 +1,14 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 namespace Pinecone;
 
 // Contract
-public sealed partial record Index<TTransport>
-    where TTransport : ITransport<TTransport>
+public sealed partial record Index<
+#if NET6_0
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+#endif
+    TTransport> where TTransport : ITransport<TTransport>
 {
     [JsonPropertyName("database")]
     public required IndexDetails Details { get; init; }
