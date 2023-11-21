@@ -28,12 +28,23 @@ public sealed class PineconeClient : IDisposable
         Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
     }
 
+    public PineconeClient(string apiKey, HttpClient client)
+    {
+        Guard.IsNotNullOrWhiteSpace(apiKey);
+        Guard.IsNotNull(client);
+
+        Http = client;
+        Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
+    }
+
     public async Task<IndexName[]> ListIndexes()
     {
-        var response = await Http.GetFromJsonAsync("/databases", SerializerContext.Default.StringArray);
-        if (response is null or { Length: 0 })
+        var response = await Http
+            .GetFromJsonAsync("/databases", SerializerContext.Default.StringArray)
+            .ConfigureAwait(false);
+        if (response is null or [])
         {
-            return Array.Empty<IndexName>();
+            return [];
         }
 
         var indexes = new IndexName[response.Length];
@@ -54,10 +65,11 @@ public sealed class PineconeClient : IDisposable
         string? sourceCollection = null)
     {
         var request = CreateIndexRequest.From(indexDetails, metadataConfig, sourceCollection);
-        var response = await Http.PostAsJsonAsync(
-            "/databases", request, SerializerContext.Default.CreateIndexRequest);
+        var response = await Http
+            .PostAsJsonAsync("/databases", request, SerializerContext.Default.CreateIndexRequest)
+            .ConfigureAwait(false);
 
-        await response.CheckStatusCode();
+        await response.CheckStatusCode().ConfigureAwait(false);
     }
 
     public Task<Index<GrpcTransport>> GetIndex(IndexName name) => GetIndex<GrpcTransport>(name);
@@ -70,10 +82,12 @@ public sealed class PineconeClient : IDisposable
 #endif
         where TTransport : ITransport<TTransport>
     {
-        var response = await Http.GetFromJsonAsync(
-            $"/databases/{name.Value}",
-            typeof(Index<TTransport>),
-            SerializerContext.Default) ?? throw new HttpRequestException("GetIndex request has failed.");
+        var response = await Http
+            .GetFromJsonAsync(
+                $"/databases/{name.Value}",
+                typeof(Index<TTransport>),
+                SerializerContext.Default)
+            .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed.");
 
         var index = (Index<TTransport>)response;
         var host = index.Status.Host;
@@ -90,21 +104,26 @@ public sealed class PineconeClient : IDisposable
     public async Task ConfigureIndex(IndexName name, int replicas, string podType)
     {
         var request = new ConfigureIndexRequest { Replicas = replicas, PodType = podType };
-        var response = await Http.PatchAsJsonAsync(
-            $"/databases/{name.Value}", request, SerializerContext.Default.ConfigureIndexRequest);
+        var response = await Http
+            .PatchAsJsonAsync($"/databases/{name.Value}", request, SerializerContext.Default.ConfigureIndexRequest)
+            .ConfigureAwait(false);
 
-        await response.CheckStatusCode();
+        await response.CheckStatusCode().ConfigureAwait(false);
     }
 
     public async Task DeleteIndex(IndexName name) =>
-        await (await Http.DeleteAsync($"/databases/{name.Value}")).CheckStatusCode();
+        await (await Http.DeleteAsync($"/databases/{name.Value}").ConfigureAwait(false))
+            .CheckStatusCode()
+            .ConfigureAwait(false);
 
     public async Task<CollectionName[]> ListCollections()
     {
-        var response = await Http.GetFromJsonAsync("/collections", SerializerContext.Default.StringArray);
-        if (response is null or { Length: 0 })
+        var response = await Http
+            .GetFromJsonAsync("/collections", SerializerContext.Default.StringArray)
+            .ConfigureAwait(false);
+        if (response is null or [])
         {
-            return Array.Empty<CollectionName>();
+            return [];
         }
 
         var collections = new CollectionName[response.Length];
@@ -119,22 +138,24 @@ public sealed class PineconeClient : IDisposable
     public async Task CreateCollection(CollectionName name, IndexName source)
     {
         var request = new CreateCollectionRequest { Name = name, Source = source };
-        var response = await Http.PostAsJsonAsync(
-            "/collections", request, SerializerContext.Default.CreateCollectionRequest);
+        var response = await Http
+            .PostAsJsonAsync("/collections", request, SerializerContext.Default.CreateCollectionRequest)
+            .ConfigureAwait(false);
 
-        await response.CheckStatusCode();
+        await response.CheckStatusCode().ConfigureAwait(false);
     }
 
     public async Task<CollectionDetails> DescribeCollection(CollectionName name)
     {
-        return await Http.GetFromJsonAsync(
-            $"/collections/{name.Value}",
-            SerializerContext.Default.CollectionDetails)
-                ?? ThrowHelpers.JsonException<CollectionDetails>();
+        return await Http
+            .GetFromJsonAsync($"/collections/{name.Value}", SerializerContext.Default.CollectionDetails)
+            .ConfigureAwait(false) ?? ThrowHelpers.JsonException<CollectionDetails>();
     }
 
     public async Task DeleteCollection(CollectionName name) =>
-        await (await Http.DeleteAsync($"/collections/{name.Value}")).CheckStatusCode();
+        await (await Http.DeleteAsync($"/collections/{name.Value}"))
+            .CheckStatusCode()
+            .ConfigureAwait(false);
 
     public void Dispose() => Http.Dispose();
 }
