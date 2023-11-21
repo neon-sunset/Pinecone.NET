@@ -33,7 +33,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         }
 
         using var call = Grpc.DescribeIndexStatsAsync(request, Auth);
-        return (await call).ToPublicType();
+        return (await call.ConfigureAwait(false)).ToPublicType();
     }
 
     public async Task<ScoredVector[]> Query(
@@ -71,7 +71,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         }
 
         using var call = Grpc.QueryAsync(request, Auth);
-        var response = await call;
+        var response = await call.ConfigureAwait(false);
 
         var matches = response.Matches;
         var vectors = new ScoredVector[response.Matches.Count];
@@ -89,7 +89,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         request.Vectors.AddRange(vectors.Select(v => v.ToProtoVector()));
 
         using var call = Grpc.UpsertAsync(request, Auth);
-        return (await call).UpsertedCount;
+        return (await call.ConfigureAwait(false)).UpsertedCount;
     }
 
     public Task Update(Vector vector, string? indexNamespace = null) => Update(
@@ -122,7 +122,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         request.Values.OverwriteWith(values);
 
         using var call = Grpc.UpdateAsync(request, Auth);
-        _ = await call;
+        _ = await call.ConfigureAwait(false);
     }
 
     public async Task<Dictionary<string, Vector>> Fetch(
@@ -135,7 +135,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         };
 
         using var call = Grpc.FetchAsync(request, Auth);
-        var response = await call;
+        var response = await call.ConfigureAwait(false);
 
         return response.Vectors.ToDictionary(
             kvp => kvp.Key,
@@ -164,7 +164,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
     private async Task Delete(DeleteRequest request)
     {
         using var call = Grpc.DeleteAsync(request, Auth);
-        _ = await call;
+        _ = await call.ConfigureAwait(false);
     }
 
     public void Dispose() => Channel.Dispose();

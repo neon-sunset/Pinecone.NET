@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -47,6 +48,7 @@ internal sealed class IndexStateConverter : JsonConverter<IndexState>
             _ => ThrowHelper.ThrowArgumentOutOfRangeException<IndexState>("Unknown enum value")
         };
     }
+
     public override void Write(Utf8JsonWriter writer, IndexState value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value switch
@@ -81,7 +83,17 @@ public class IndexNamespaceArrayConverter : JsonConverter<IndexNamespace[]>
                 ThrowHelper.ThrowFormatException("Expected property name");
             }
 
-            var nameSpan = reader.ValueSpan;
+            ReadOnlySpan<byte> nameSpan;
+            if (!reader.HasValueSequence)
+            {
+                nameSpan = reader.ValueSpan;
+            }
+            else
+            {
+                var nameBuf = new byte[reader.ValueSequence.Length];
+                reader.ValueSequence.CopyTo(nameBuf);
+                nameSpan = nameBuf;
+            }
 
             reader.Read();
             if (reader.TokenType != JsonTokenType.StartObject)
@@ -106,7 +118,7 @@ public class IndexNamespaceArrayConverter : JsonConverter<IndexNamespace[]>
             }
         }
 
-        return buffer.ToArray();
+        return [..buffer];
     }
 
     public override void Write(Utf8JsonWriter writer, IndexNamespace[] value, JsonSerializerOptions options)
@@ -169,6 +181,7 @@ public class MetadataValueConverter : JsonConverter<MetadataValue>
             case string s: writer.WriteStringValue(s); break;
             case double d: writer.WriteNumberValue(d); break;
             case MetadataValue[] a: WriteArray(writer, a); break;
+            case IEnumerable<MetadataValue> e: WriteEnumerable(writer, e); break;
             case MetadataMap m: WriteMap(writer, m); break;
             default:
                 ThrowHelper.ThrowArgumentOutOfRangeException(
@@ -181,6 +194,16 @@ public class MetadataValueConverter : JsonConverter<MetadataValue>
     {
         writer.WriteStartArray();
         foreach (var value in array)
+        {
+            WriteValue(writer, value);
+        }
+        writer.WriteEndArray();
+    }
+
+    private static void WriteEnumerable(Utf8JsonWriter writer, IEnumerable<MetadataValue> enumerable)
+    {
+        writer.WriteStartArray();
+        foreach (var value in enumerable)
         {
             WriteValue(writer, value);
         }
