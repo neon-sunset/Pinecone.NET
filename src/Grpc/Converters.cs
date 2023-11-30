@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using CommunityToolkit.Diagnostics;
 using Google.Protobuf.Collections;
 using Google.Protobuf.WellKnownTypes;
@@ -8,15 +9,6 @@ namespace Pinecone.Grpc;
 
 internal static class Converters
 {
-    private static class FieldAccessors<T> where T : unmanaged
-    {
-        public static readonly FieldInfo ArrayField = typeof(RepeatedField<T>)
-            .GetField("array", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new NullReferenceException();
-
-        public static readonly FieldInfo CountField = typeof(RepeatedField<T>)
-            .GetField("count", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new NullReferenceException();
-    }
-
     // gRPC types conversion to sane and usable ones
     public static Struct ToProtoStruct(this MetadataMap source)
     {
@@ -35,8 +27,7 @@ internal static class Converters
         {
             // This is terrible but such is life
             null => Value.ForNull(),
-            int or uint or long or ulong or float or double or decimal =>
-                Value.ForNumber(Convert.ToDouble(source.Inner, CultureInfo.InvariantCulture)),
+            double num => Value.ForNumber(num),
             string str => Value.ForString(str),
             bool boolean => Value.ForBool(boolean),
             MetadataMap nested => Value.ForStruct(nested.ToProtoStruct()),
@@ -74,7 +65,7 @@ internal static class Converters
             {
                 Name = kvp.Key,
                 VectorCount = kvp.Value.VectorCount
-            }).ToArray() : Array.Empty<IndexNamespace>(),
+            }).ToArray() : [],
         Dimension = source.Dimension,
         IndexFullness = source.IndexFullness,
         TotalVectorCount = source.TotalVectorCount
@@ -135,18 +126,9 @@ internal static class Converters
         };
     }
 
-    public static RepeatedField<T> AsRepeatedField<T>(this T[] source) where T : unmanaged
-    {
-        var repeatedField = new RepeatedField<T>();
-        FieldAccessors<T>.ArrayField.SetValue(repeatedField, source);
-        FieldAccessors<T>.CountField.SetValue(repeatedField, source.Length);
-
-        return repeatedField;
-    }
-
     public static T[] AsArray<T>(this RepeatedField<T> source) where T : unmanaged
     {
-        var buffer = (T[])FieldAccessors<T>.ArrayField.GetValue(source)!;
+        var buffer = FieldAccessors<T>.GetArray(source);
         if (buffer.Length != source.Count)
         {
             buffer = buffer[..source.Count];
@@ -159,7 +141,62 @@ internal static class Converters
     {
         if (source is null) return;
 
-        FieldAccessors<T>.ArrayField.SetValue(target, source);
-        FieldAccessors<T>.CountField.SetValue(target, source.Length);
+        FieldAccessors<T>.SetArray(target, source);
+        FieldAccessors<T>.SetCount(target, source.Length);
     }
+
+    private static class FieldAccessors<T> where T : unmanaged
+    {
+        public static T[] GetArray(RepeatedField<T> instance)
+        {
+#if NET8_0_OR_GREATER
+            if (instance is RepeatedField<float> floatSeq)
+            {
+                return (T[])(object)ArrayRef(floatSeq);
+            }
+#endif
+
+            return (T[])ArrayField.GetValue(instance)!;
+        }
+
+        public static void SetArray(RepeatedField<T> instance, T[] value)
+        {
+#if NET8_0_OR_GREATER
+            if (instance is RepeatedField<float> floatSeq)
+            {
+                ArrayRef(floatSeq) = (float[])(object)value;
+                return;
+            }
+#endif
+
+            ArrayField.SetValue(instance, value);
+        }
+
+        public static void SetCount(RepeatedField<T> instance, int value)
+        {
+#if NET8_0_OR_GREATER
+            if (instance is RepeatedField<float> floatSeq)
+            {
+                CountRef(floatSeq) = value;
+                return;
+            }
+#endif
+
+            CountField.SetValue(instance, value);
+        }
+
+        static readonly FieldInfo ArrayField = typeof(RepeatedField<T>)
+            .GetField("array", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new NullReferenceException();
+
+        static readonly FieldInfo CountField = typeof(RepeatedField<T>)
+            .GetField("count", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new NullReferenceException();
+    }
+
+#if NET8_0_OR_GREATER
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "array")]
+    static extern ref float[] ArrayRef(RepeatedField<float> instance);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "count")]
+    static extern ref int CountRef(RepeatedField<float> instance);
+#endif
 }

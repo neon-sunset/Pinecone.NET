@@ -13,8 +13,4 @@
     <ProjectReference Include="..\src\Pinecone.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Azure.AI.OpenAI" Version="1.0.0-beta.8" />
-  </ItemGroup>
-
 </Project>

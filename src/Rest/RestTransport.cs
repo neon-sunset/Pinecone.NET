@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -76,7 +77,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
     {
         var request = new UpsertRequest
         {
-            Vectors = vectors as Vector[] ?? vectors.ToArray(),
+            Vectors = vectors,
             Namespace = indexNamespace ?? ""
         };
 
@@ -93,6 +94,8 @@ public readonly record struct RestTransport : ITransport<RestTransport>
     public async Task Update(Vector vector, string? indexNamespace = null)
     {
         var request = UpdateRequest.From(vector, indexNamespace);
+        Debug.Assert(request.Metadata is null);
+
         var response = await Http
             .PostAsJsonAsync("/vectors/update", request, SerializerContext.Default.UpdateRequest)
             .ConfigureAwait(false);

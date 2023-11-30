@@ -8,8 +8,8 @@
     <PackageProjectUrl>https://github.com/neon-sunset/Pinecone.NET</PackageProjectUrl>
     <PackageTags>Pinecone;PineconeIo;Vector;Database;</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Description>Pinecone.NET is a fully-fledged C# library for the Pinecone vector database.
-  It aims to provide identical functionality to the official Python and Rust libraries.</Description>
+    <Description>Pinecone.NET is a fully-fledged C# library for the Pinecone vector database.  
+In the absence of an official SDK, it provides first-class support for Pinecone in C# and F#.</Description>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -40,7 +40,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="RangeExtensions" Version="2.1.1" />
     <PackageReference Include="Google.Protobuf" Version="3.25.1" />
     <PackageReference Include="Grpc.Net.Client" Version="2.59.0" />
     <PackageReference Include="Grpc.Net.ClientFactory" Version="2.59.0" />

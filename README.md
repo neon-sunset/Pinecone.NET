@@ -1,6 +1,7 @@
 # Pinecone.NET
 
-Pinecone.NET is a fully-fledged C# library for the Pinecone vector database. It aims to provide identical functionality to the official Python and Rust libraries.
+Pinecone.NET is a fully-fledged C# library for the Pinecone vector database.  
+In the absence of an official SDK, it provides first-class support for Pinecone in C# and F#.
 
 ## Features
 
@@ -9,7 +10,7 @@ Pinecone.NET is a fully-fledged C# library for the Pinecone vector database. It 
 - Sparse-dense vectors
 - Efficient vector serialization
 - Metadata support
-- NativeAOT compatibility
+- NativeAOT compatibility (e.g. for AWS Lambda)
 
 ## Installation
 
@@ -36,7 +37,9 @@ if (!indexes.Contains(indexName))
     await pinecone.CreateIndex(indexName, 1536, Metric.Cosine);
 }
 
-// Get an index by name
+// Get the Pinecone index by name (uses gRPC by default).
+// The index client is thread-safe, consider caching and/or
+// injecting it as a singleton into your DI container.
 using var index = await pinecone.GetIndex(indexName);
 
 // Configure an index
@@ -66,7 +69,7 @@ var vectors = new[]
 await index.Upsert(vectors);
 
 // Fetch vectors by IDs
-var fetched = await index.Fetch(new[] { "vector1" });
+var fetched = await index.Fetch(["vector1"]);
 
 // Query scored vectors by ID
 var scored = await index.Query("vector1", topK: 10);
@@ -80,7 +83,7 @@ var filter = new MetadataMap
 {
     ["genre"] = new MetadataMap
     {
-        ["$in"] = new MetadataValue[] { "documentary", "action" }
+        ["$in"] = new[] { "documentary", "action" }
     }
 };
 var scored = await index.Query("birds", topK: 10, filter);
@@ -93,7 +96,7 @@ await index.Delete(new MetadataMap
 {
   ["genre"] = new MetadataMap
   {
-     ["$in"] = new MetadataValue[] { "documentary", "action" }
+     ["$in"] = new[] { "documentary", "action" }
   }
 });
 

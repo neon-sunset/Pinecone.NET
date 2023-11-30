@@ -4,15 +4,11 @@ namespace Pinecone.Rest;
 
 internal sealed record CreateIndexRequest : IndexDetails
 {
-    [JsonPropertyName("metadata_config")]
-    public MetadataMap? MetadataConfig { get; init; }
-
     [JsonPropertyName("source_collection")]
     public string? SourceCollection { get; init; }
 
     public static CreateIndexRequest From(
         IndexDetails index,
-        MetadataMap? metadataConfig,
         string? sourceCollection) => new()
     {
         Dimension = index.Dimension,
@@ -21,17 +17,17 @@ internal sealed record CreateIndexRequest : IndexDetails
         Pods = index.Pods,
         PodType = index.PodType,
         Replicas = index.Replicas,
-        MetadataConfig = metadataConfig,
+        MetadataConfig = index.MetadataConfig,
         SourceCollection = sourceCollection
     };
 }
 
 internal readonly record struct ConfigureIndexRequest
 {
-    public required int Replicas { get; init; }
+    public int? Replicas { get; init; }
 
     [JsonPropertyName("pod_type")]
-    public required string PodType { get; init; }
+    public string? PodType { get; init; }
 }
 
 internal readonly record struct DescribeStatsRequest
@@ -65,7 +61,7 @@ internal readonly record struct QueryResponse
 
 internal readonly record struct UpsertRequest
 {
-    public required Vector[] Vectors { get; init; }
+    public required IEnumerable<Vector> Vectors { get; init; }
     public required string Namespace { get; init; }
 }
 

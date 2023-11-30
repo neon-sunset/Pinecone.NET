@@ -3,12 +3,6 @@ using Pinecone.Rest;
 
 namespace Pinecone;
 
-public readonly record struct IndexName(string Value)
-{
-    public static implicit operator string(IndexName value) => value.Value;
-    public static implicit operator IndexName(string value) => new(value);
-}
-
 public record IndexDetails
 {
     public required string Name { get; init; }
@@ -18,14 +12,16 @@ public record IndexDetails
     [JsonPropertyName("pod_type")]
     public string? PodType { get; init; }
     public long? Replicas { get; init; }
+    [JsonPropertyName("metadata_config")]
+    public MetadataMap? MetadataConfig { get; init; }
 }
 
-[JsonConverter(typeof(MetricConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<Metric>))]
 public enum Metric
 {
-    Cosine = 0,
-    DotProduct = 1,
-    Euclidean = 2,
+    [JsonPropertyName("cosine")] Cosine = 0,
+    [JsonPropertyName("dotproduct")] DotProduct = 1,
+    [JsonPropertyName("euclidean")] Euclidean = 2
 }
 
 public record IndexStatus
@@ -34,18 +30,22 @@ public record IndexStatus
     public required bool IsReady { get; init; }
     public required IndexState State { get; init; }
     public required string Host { get; init; }
+    public required int Port { get; init; }
     public string?[]? Waiting { get; init; }
     public string?[]? Crashed { get; init; }
 }
 
-[JsonConverter(typeof(IndexStateConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<IndexState>))]
 public enum IndexState
 {
     Initializing = 0,
     ScalingUp = 1,
     ScalingDown = 2,
     Terminating = 3,
-    Ready = 4
+    Ready = 4,
+    ScalingUpPodSize = 5,
+    ScalingDownPodSize = 6,
+    InitializationFailed = 7
 }
 
 public record IndexStats

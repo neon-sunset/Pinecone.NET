@@ -75,7 +75,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 
         var matches = response.Matches;
         var vectors = new ScoredVector[response.Matches.Count];
-        foreach (var i in 0..matches.Count)
+        for (var i = 0; i < matches.Count; i++)
         {
             vectors[i] = matches[i].ToPublicType();
         }

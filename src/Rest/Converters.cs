@@ -6,63 +6,6 @@ using CommunityToolkit.Diagnostics;
 
 namespace Pinecone.Rest;
 
-internal sealed class MetricConverter : JsonConverter<Metric>
-{
-    public override Metric Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        var value = reader.ValueSpan;
-
-        return value[0] switch
-        {
-            (byte)'c' when value.SequenceEqual("cosine"u8) => Metric.Cosine,
-            (byte)'d' when value.SequenceEqual("dotproduct"u8) => Metric.DotProduct,
-            (byte)'e' when value.SequenceEqual("euclidean"u8) => Metric.Euclidean,
-            _ => ThrowHelper.ThrowArgumentOutOfRangeException<Metric>("Unknown enum value")
-        };
-    }
-
-    public override void Write(Utf8JsonWriter writer, Metric value, JsonSerializerOptions options)
-    {
-        writer.WriteStringValue(value switch
-        {
-            Metric.Cosine => "cosine"u8,
-            Metric.DotProduct => "dotproduct"u8,
-            Metric.Euclidean => "euclidean"u8,
-            _ => ThrowHelper.ThrowArgumentOutOfRangeException<byte[]>("Unknown enum value")
-        });
-    }
-}
-
-internal sealed class IndexStateConverter : JsonConverter<IndexState>
-{
-    public override IndexState Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        var value = reader.ValueSpan;
-        return value[0] switch
-        {
-            (byte)'I' when value.SequenceEqual("Initializing"u8) => IndexState.Initializing,
-            (byte)'S' when value.SequenceEqual("ScalingUp"u8) => IndexState.ScalingUp,
-            (byte)'S' when value.SequenceEqual("ScalingDown"u8) => IndexState.ScalingDown,
-            (byte)'T' when value.SequenceEqual("Terminating"u8) => IndexState.Terminating,
-            (byte)'R' when value.SequenceEqual("Ready"u8) => IndexState.Ready,
-            _ => ThrowHelper.ThrowArgumentOutOfRangeException<IndexState>("Unknown enum value")
-        };
-    }
-
-    public override void Write(Utf8JsonWriter writer, IndexState value, JsonSerializerOptions options)
-    {
-        writer.WriteStringValue(value switch
-        {
-            IndexState.Initializing => "Initializing"u8,
-            IndexState.ScalingUp => "ScalingUp"u8,
-            IndexState.ScalingDown => "ScalingDown"u8,
-            IndexState.Terminating => "Terminating"u8,
-            IndexState.Ready => "Ready"u8,
-            _ => ThrowHelper.ThrowArgumentOutOfRangeException<byte[]>("Unknown enum value")
-        });
-    }
-}
-
 // Co-implemented with Bing Chat :D
 public class IndexNamespaceArrayConverter : JsonConverter<IndexNamespace[]>
 {

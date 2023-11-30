@@ -1,50 +1,45 @@
-using Azure.AI.OpenAI;
 using Pinecone;
 
-const string indexName = "your-index";
-
-var openAIKey = "your-key";
-var pineconeKey = "your-key";
-var pineconeEnv = "your-env";
-
-using var pinecone = new PineconeClient(pineconeKey, pineconeEnv);
+using var pinecone = new PineconeClient("[api-key]", "[pinecone-env]");
 
 // Check if the index exists and create it if it doesn't
 // Depending on the storage type and infrastructure state this may take a while
 // Free tier is limited to 1 index only
-if (!(await pinecone.ListIndexes()).Contains(indexName))
+var indexName = "test-index";
+var indexList = await pinecone.ListIndexes();
+
+if (!indexList.Contains(indexName))
 {
     await pinecone.CreateIndex(indexName, 1536, Metric.Cosine);
 }
 
-// Create an OpenAI Azure client and declare a helper method to embed our text
-var openAI = new OpenAIClient(openAIKey);
-async Task<float[]> Embed(string text)
-{
-    var request = new EmbeddingsOptions(text);
-    var response = await openAI.GetEmbeddingsAsync("text-embedding-ada-002", request);
-    return response.Value.Data[0].Embedding.ToArray(); // IReadOnlyList<float>, really Microsoft?
-}
-
-// Get our Pinecone index (uses gRPC by default)
+// Get the Pinecone index by name (uses gRPC by default).
+// The index client is thread-safe, consider caching and/or
+// injecting it as a singleton into your DI container.
 using var index = await pinecone.GetIndex(indexName);
 
 var first = new Vector
 {
     Id = "first",
-    Values = await Embed("Hello world!"),
-    Metadata = new() { ["price"] = 50 }
+    // Zeroed-out placeholder vector, this is where you put the embeddings unless using sparse vectors
+    Values = new float[1536],
+    Metadata = new()
+    {
+        ["new"] = true,
+        ["price"] = 50,
+        ["tags"] = new string[] { "tag1", "tag2" }
+    }
 };
 
 var second = new Vector
 {
     Id = "second",
-    Values = await Embed("Hello world!"),
+    Values = new float[1536],
     Metadata = new() { ["price"] = 100 }
 };
 
 // Upsert vectors into the index
-await index.Upsert(new[] { first, second });
+await index.Upsert([first, second]);
 
 // Specify metadata filter to query the index with
 var priceRange = new MetadataMap
@@ -61,7 +56,7 @@ await index.Update("second", metadata: new() { ["price"] = 99 });
 
 // Query the index by embedding and metadata filter
 var results = await index.Query(
-    await Embed("Hello world!"),
+    new float[1536],
     topK: 3,
     filter: priceRange,
     includeMetadata: true);
@@ -69,4 +64,4 @@ var results = await index.Query(
 Console.WriteLine(string.Join('\n', results.SelectMany(v => v.Metadata!)));
 
 // Remove the example vectors we just added
-await index.Delete(new[] { "first", "second" });
+await index.Delete(["first", "second"]);
