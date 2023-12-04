@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\Pinecone.csproj" />
+    <ProjectReference Include="..\..\src\Pinecone.csproj" />
   </ItemGroup>
 
 </Project>
