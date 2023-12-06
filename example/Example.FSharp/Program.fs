@@ -12,7 +12,7 @@ let main = task {
     // Free tier is limited to 1 index only
     let indexName = "test-index"
     let! indexList = pinecone.ListIndexes()
-    if not (indexList |> Array.contains indexName) then
+    if indexList |> Array.contains indexName |> not then
         do! pinecone.CreateIndex(indexName, 1536u, Metric.Cosine)
     
     // Get the Pinecone index by name (uses gRPC by default).
@@ -21,8 +21,8 @@ let main = task {
     use! index = pinecone.GetIndex(indexName)
 
     let tags = [|"tag1" ; "tag2"|]
-    let first: Vector = Vector(Id = "first", Values = Array.zeroCreate 1536, Metadata = createMetadata["new", true; "price", 50; "tags", tags])
-    let second: Vector = Vector(Id = "second", Values = Array.zeroCreate 1536, Metadata = createMetadata["price", 50])
+    let first = Vector(Id = "first", Values = Array.zeroCreate 1536, Metadata = createMetadata["new", true; "price", 50; "tags", tags])
+    let second = Vector(Id = "second", Values = Array.zeroCreate 1536, Metadata = createMetadata["price", 50])
     
     // Upsert vectors into the index
     let! _ = index.Upsert [|first; second|]
@@ -34,12 +34,16 @@ let main = task {
     do! index.Update("second", metadata = createMetadata["price", 99])
 
     // Query the index by embedding and metadata filter
-    let! results = index.Query((Array.zeroCreate<float32> 1536), 3u, filter = priceRange, includeMetadata = true)
-    let tt = results |> Seq.collect (fun v -> v.Metadata)
-    printfn "%s" (results |> Seq.collect (fun v -> v.Metadata) |> Seq.map string |> String.concat "\n")
+    let! results = index.Query((Array.zeroCreate 1536), 3u, filter = priceRange, includeMetadata = true)
+    let metadata =
+        results
+        |> Seq.collect _.Metadata
+        |> Seq.map string
+        |> String.concat "\n"
+    printfn "%s" metadata
 
     // Remove the example vectors we just added
-    do! index.Delete(["first"; "second"])
+    do! index.Delete ["first"; "second"]
 }
 
 main.Wait()
