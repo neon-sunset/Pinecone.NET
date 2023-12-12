@@ -27,7 +27,11 @@ public record ScoredVector
     public MetadataMap? Metadata { get; init; }
 }
 
-public sealed class MetadataMap : Dictionary<string, MetadataValue> { }
+public sealed class MetadataMap : Dictionary<string, MetadataValue> 
+{
+    public MetadataMap() : base() { }
+    public MetadataMap(IEnumerable<KeyValuePair<string, MetadataValue>> collection) : base(collection) { }
+}
 
 [JsonConverter(typeof(MetadataValueConverter))]
 public readonly record struct MetadataValue
