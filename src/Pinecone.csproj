@@ -28,7 +28,7 @@ In the absence of an official SDK, it provides first-class support for Pinecone 
   <ItemGroup Condition="'$(TargetFramework)' == 'net7.0' Or '$(TargetFramework)' == 'net6.0'">
     <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />
     <PackageReference Include="System.Text.Json" Version="8.0.0" />
-    <PackageReference Include="PolySharp" Version="1.14.0">
+    <PackageReference Include="PolySharp" Version="1.14.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
