@@ -41,6 +41,9 @@ var second = new Vector
 // Upsert vectors into the index
 await index.Upsert([first, second]);
 
+// Partially update a vector (allows to update dense/sparse/metadata properties only)
+await index.Update("second", metadata: new() { ["price"] = 99 });
+
 // Specify metadata filter to query the index with
 var priceRange = new MetadataMap
 {
@@ -50,9 +53,6 @@ var priceRange = new MetadataMap
         ["$lte"] = 125
     }
 };
-
-// Partially update a vector (allows to update dense/sparse/metadata properties only)
-await index.Update("second", metadata: new() { ["price"] = 99 });
 
 // Query the index by embedding and metadata filter
 var results = await index.Query(
