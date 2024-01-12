@@ -27,11 +27,11 @@ let main = task {
     // Upsert vectors into the index
     let! _ = index.Upsert [|first; second|]
 
-    // Specify metadata filter to query the index with
-    let priceRange = createMetadata["price", createMetadata["$gte", 75; "$lte", 125]]
-
     // Partially update a vector (allows to update dense/sparse/metadata properties only)
     do! index.Update("second", metadata = createMetadata["price", 99])
+
+    // Specify metadata filter to query the index with
+    let priceRange = createMetadata["price", createMetadata["$gte", 75; "$lte", 125]]
 
     // Query the index by embedding and metadata filter
     let! results = index.Query((Array.zeroCreate 1536), 3u, filter = priceRange, includeMetadata = true)
