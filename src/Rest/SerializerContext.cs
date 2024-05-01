@@ -25,6 +25,8 @@ namespace Pinecone.Rest;
 [JsonSerializable(typeof(DeleteRequest))]
 [JsonSerializable(typeof(MetadataMap))]
 [JsonSerializable(typeof(MetadataValue[]))]
+[JsonSerializable(typeof(ListIndexesResult))]
+[JsonSerializable(typeof(ListCollectionsResult))]
 [JsonSourceGenerationOptions(
     GenerationMode = JsonSourceGenerationMode.Default,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

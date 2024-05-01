@@ -10,9 +10,11 @@ public sealed partial record Index<
 #endif
     TTransport> where TTransport : ITransport<TTransport>
 {
-    [JsonPropertyName("database")]
-    public required IndexDetails Details { get; init; }
-
+    public required string Name { get; init; }
+    public required uint Dimension { get; init; }
+    public required Metric Metric { get; init; }
+    public string? Host { get; init; }
+    public required IndexSpec Spec { get; init; }
     public required IndexStatus Status { get; init; }
 }
 

@@ -10,6 +10,12 @@ namespace Pinecone;
 public sealed class PineconeClient : IDisposable
 {
     private readonly HttpClient Http;
+    private readonly string? _legacyEnvironment;
+    
+    public PineconeClient(string apiKey)
+        : this(apiKey, new Uri($"https://api.pinecone.io"))
+    {
+    }
 
     public PineconeClient(string apiKey, string environment)
     {
@@ -18,6 +24,7 @@ public sealed class PineconeClient : IDisposable
 
         Http = new() { BaseAddress = new Uri($"https://controller.{environment}.pinecone.io") };
         Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
+        _legacyEnvironment = environment;
     }
 
     public PineconeClient(string apiKey, Uri baseUrl)
@@ -38,27 +45,47 @@ public sealed class PineconeClient : IDisposable
         Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
     }
 
-    public async Task<string[]> ListIndexes()
+    public async Task<IndexDetails[]> ListIndexes()
     {
-        var indexes = await Http
-            .GetFromJsonAsync("/databases", SerializerContext.Default.StringArray)
+        var listIndexesResult = (ListIndexesResult?)await Http
+            .GetFromJsonAsync("/indexes", typeof(ListIndexesResult), SerializerContext.Default)
             .ConfigureAwait(false);
 
-        return indexes ?? [];
+        return listIndexesResult?.Indexes ?? [];
     }
 
-    public Task CreateIndex(string name, uint dimension, Metric metric) =>
-        CreateIndex(new IndexDetails { Name = name, Dimension = dimension, Metric = metric });
+    public Task CreatePodIndexAsync(string name, uint dimiension, Metric metric, string environment, string podType, long pods)
+        => CreateIndexAsync(new CreateIndexRequest
+        {
+            Name = name,
+            Dimension = dimiension,
+            Metric = metric,
+            Spec = new IndexSpec { Pod = new PodSpec { Environment = environment, PodType = podType, Pods = pods } }
+        });
 
-    public async Task CreateIndex(IndexDetails indexDetails, string? sourceCollection = null)
+    public Task CreateServerlessIndexAsync(string name, uint dimiension, Metric metric, string cloud, string region)
+        => CreateIndexAsync(new CreateIndexRequest
+        {
+            Name = name,
+            Dimension = dimiension,
+            Metric = metric,
+            Spec = new IndexSpec { Serverless = new ServerlessSpec { Cloud = cloud, Region = region } }
+        });
+
+    private async Task CreateIndexAsync(CreateIndexRequest request)
     {
-        var request = CreateIndexRequest.From(indexDetails, sourceCollection);
         var response = await Http
-            .PostAsJsonAsync("/databases", request, SerializerContext.Default.CreateIndexRequest)
+            .PostAsJsonAsync("/indexes", request, SerializerContext.Default.CreateIndexRequest)
             .ConfigureAwait(false);
 
         await response.CheckStatusCode().ConfigureAwait(false);
     }
+
+    [Obsolete("Use 'CreateServerlessIndexAsync' or 'CreatePodIndexAsync' methods instead.")]
+    public Task CreateIndex(string name, uint dimension, Metric metric) 
+        => _legacyEnvironment is not null
+            ? CreatePodIndexAsync(name, dimension, metric, _legacyEnvironment, "starter", 1)
+            : throw new InvalidOperationException($"Use '{nameof(CreateServerlessIndexAsync)}' or '{nameof(CreatePodIndexAsync)}' methods instead.");
 
     public Task<Index<GrpcTransport>> GetIndex(string name) => GetIndex<GrpcTransport>(name);
 
@@ -70,22 +97,34 @@ public sealed class PineconeClient : IDisposable
 #endif
         where TTransport : ITransport<TTransport>
     {
-        var response = await Http
+        var response = (IndexDetails?)await Http
             .GetFromJsonAsync(
-                $"/databases/{UrlEncoder.Default.Encode(name)}",
-                typeof(Index<TTransport>),
+                $"/indexes/{UrlEncoder.Default.Encode(name)}",
+                typeof(IndexDetails),
                 SerializerContext.Default)
-            .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed.");
+            .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed.")!;
 
-        var index = (Index<TTransport>)response;
-        var host = index.Status.Host;
+        // TODO: Host is optional according to the API spec: https://docs.pinecone.io/reference/api/control-plane/describe_index
+        // but Transport requires it
+        var host = response.Host!;
         var apiKey = Http.DefaultRequestHeaders.GetValues(Constants.RestApiKey).First();
+
+        var index = new Index<TTransport>
+        {
+            Name = response.Name,
+            Dimension = response.Dimension,
+            Metric = response.Metric,
+            Host = response.Host,
+            Spec = response.Spec,
+            Status = response.Status,
+        };
 
 #if NET7_0_OR_GREATER
         index.Transport = TTransport.Create(host, apiKey);
 #else
         index.Transport = ITransport<TTransport>.Create(host, apiKey);
 #endif
+
         return index;
     }
 
@@ -100,7 +139,7 @@ public sealed class PineconeClient : IDisposable
         var request = new ConfigureIndexRequest { Replicas = replicas, PodType = podType };
         var response = await Http
             .PatchAsJsonAsync(
-                $"/databases/{UrlEncoder.Default.Encode(name)}",
+                $"/indexes/{UrlEncoder.Default.Encode(name)}",
                 request,
                 SerializerContext.Default.ConfigureIndexRequest)
             .ConfigureAwait(false);
@@ -109,17 +148,17 @@ public sealed class PineconeClient : IDisposable
     }
 
     public async Task DeleteIndex(string name) =>
-        await (await Http.DeleteAsync($"/databases/{UrlEncoder.Default.Encode(name)}").ConfigureAwait(false))
+        await (await Http.DeleteAsync($"/indexes/{UrlEncoder.Default.Encode(name)}").ConfigureAwait(false))
             .CheckStatusCode()
             .ConfigureAwait(false);
 
-    public async Task<string[]> ListCollections()
+    public async Task<CollectionDetails[]> ListCollections()
     {
-        var collections = await Http
-            .GetFromJsonAsync("/collections", SerializerContext.Default.StringArray)
+        var listCollectionsResult = (ListCollectionsResult?)await Http
+            .GetFromJsonAsync("/collections", typeof(ListCollectionsResult), SerializerContext.Default)
             .ConfigureAwait(false);
 
-        return collections ?? [];
+        return listCollectionsResult?.Collections ?? [];
     }
 
     public async Task CreateCollection(string name, string source)
