@@ -33,10 +33,8 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         }
 
         using var call = Grpc.DescribeIndexStatsAsync(request, Auth);
-        var response = await call.ConfigureAwait(false);
         
-        return response.ToPublicType();
-        //return (await call.ConfigureAwait(false)).ToPublicType();
+        return (await call.ConfigureAwait(false)).ToPublicType();
     }
 
     public async Task<ScoredVector[]> Query(
@@ -92,10 +90,8 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         request.Vectors.AddRange(vectors.Select(v => v.ToProtoVector()));
 
         using var call = Grpc.UpsertAsync(request, Auth);
-        var response = await call.ConfigureAwait(false);
 
-        return response.UpsertedCount;
-        //return (await call.ConfigureAwait(false)).UpsertedCount;
+        return (await call.ConfigureAwait(false)).UpsertedCount;
     }
 
     public Task Update(Vector vector, string? indexNamespace = null) => Update(

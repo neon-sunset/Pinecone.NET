@@ -54,7 +54,7 @@ public sealed class PineconeClient : IDisposable
         return listIndexesResult?.Indexes ?? [];
     }
 
-    public Task CreatePodIndexAsync(string name, uint dimiension, Metric metric, string environment, string podType, long pods)
+    public Task CreatePodBasedIndex(string name, uint dimiension, Metric metric, string environment, string podType, long pods)
         => CreateIndexAsync(new CreateIndexRequest
         {
             Name = name,
@@ -63,7 +63,7 @@ public sealed class PineconeClient : IDisposable
             Spec = new IndexSpec { Pod = new PodSpec { Environment = environment, PodType = podType, Pods = pods } }
         });
 
-    public Task CreateServerlessIndexAsync(string name, uint dimiension, Metric metric, string cloud, string region)
+    public Task CreateServerlessIndex(string name, uint dimiension, Metric metric, string cloud, string region)
         => CreateIndexAsync(new CreateIndexRequest
         {
             Name = name,
@@ -81,11 +81,11 @@ public sealed class PineconeClient : IDisposable
         await response.CheckStatusCode().ConfigureAwait(false);
     }
 
-    [Obsolete("Use 'CreateServerlessIndexAsync' or 'CreatePodIndexAsync' methods instead.")]
+    [Obsolete($"Use '{nameof(CreateServerlessIndex)}' or '{nameof(CreatePodBasedIndex)}' methods instead.")]
     public Task CreateIndex(string name, uint dimension, Metric metric) 
         => _legacyEnvironment is not null
-            ? CreatePodIndexAsync(name, dimension, metric, _legacyEnvironment, "starter", 1)
-            : throw new InvalidOperationException($"Use '{nameof(CreateServerlessIndexAsync)}' or '{nameof(CreatePodIndexAsync)}' methods instead.");
+            ? CreatePodBasedIndex(name, dimension, metric, _legacyEnvironment, "starter", 1)
+            : throw new InvalidOperationException($"Use '{nameof(CreateServerlessIndex)}' or '{nameof(CreatePodBasedIndex)}' methods instead.");
 
     public Task<Index<GrpcTransport>> GetIndex(string name) => GetIndex<GrpcTransport>(name);
 
@@ -97,12 +97,12 @@ public sealed class PineconeClient : IDisposable
 #endif
         where TTransport : ITransport<TTransport>
     {
-        var response = (IndexDetails?)await Http
+        var response = (IndexDetails)(await Http
             .GetFromJsonAsync(
                 $"/indexes/{UrlEncoder.Default.Encode(name)}",
                 typeof(IndexDetails),
                 SerializerContext.Default)
-            .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed.")!;
+            .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed."));
 
         // TODO: Host is optional according to the API spec: https://docs.pinecone.io/reference/api/control-plane/describe_index
         // but Transport requires it

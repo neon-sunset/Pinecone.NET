@@ -11,7 +11,7 @@ var indexList = await pinecone.ListIndexes();
 if (!indexList.Select(x => x.Name).Contains(indexName))
 {
     // free serverless indexes are currently only available on AWS us-east-1
-    await pinecone.CreateServerlessIndexAsync(indexName, 1536, Metric.Cosine, "aws", "us-east-1");
+    await pinecone.CreateServerlessIndex(indexName, 1536, Metric.Cosine, "aws", "us-east-1");
 }
 
 // Get the Pinecone index by name (uses gRPC by default).

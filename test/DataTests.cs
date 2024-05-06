@@ -266,7 +266,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         private async Task CreateIndexAndWait()
         {
             var attemptCount = 0;
-            await Pinecone.CreateServerlessIndexAsync(IndexName, dimiension: 8, metric: Metric.Euclidean, cloud: "aws", region: "us-east-1");
+            await Pinecone.CreateServerlessIndex(IndexName, dimiension: 8, metric: Metric.Euclidean, cloud: "aws", region: "us-east-1");
 
             do
             {

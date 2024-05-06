@@ -13,8 +13,8 @@ let main = task {
     let indexName = "test-index"
     let! indexList = pinecone.ListIndexes()
     if not (indexList |> Array.exists (fun index -> index.Name = indexName)) then
-        // Create the serverless index (available only on AWS us-east-1)
-        pinecone.CreateServerlessIndexAsync(indexName, 1536u, Metric.Cosine, "aws", "us-east-1")
+        // free serverless indexes are currently only available on AWS us-east-1
+        pinecone.CreateServerlessIndex(indexName, 1536u, Metric.Cosine, "aws", "us-east-1")
 
     // Get the Pinecone index by name (uses gRPC by default).
     // The index client is thread-safe, consider caching and/or

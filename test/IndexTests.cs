@@ -36,7 +36,7 @@ public class IndexTests
         while (podIndexes.Any() && attemptCount < MaxAttemptCount);
 
         //this will get created but initialization fails later
-        await pinecone.CreatePodIndexAsync(indexName, 3, Metric.Cosine, "gcp-starter", "starter", 1);
+        await pinecone.CreatePodBasedIndex(indexName, 3, Metric.Cosine, "gcp-starter", "starter", 1);
 
         var listIndexes = await pinecone.ListIndexes();
 
@@ -71,7 +71,7 @@ public class IndexTests
         }
         while (podIndexes.Contains(indexName) && attemptCount < MaxAttemptCount);
 
-        await pinecone.CreateServerlessIndexAsync(indexName, 3, metric, "aws", "us-east-1");
+        await pinecone.CreateServerlessIndex(indexName, 3, metric, "aws", "us-east-1");
 
         Index<GrpcTransport> index;
         attemptCount = 0;
