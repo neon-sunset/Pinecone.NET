@@ -1,80 +1,76 @@
 ﻿using Pinecone;
 using Pinecone.Grpc;
+using PineconeTests.Xunit;
 using Xunit;
 
 namespace PineconeTests;
 
 [Collection("PineconeTests")]
+[PineconeApiKeySetCondition]
 public class IndexTests
 {
     private const int MaxAttemptCount = 300;
     private const int DelayInterval = 100;
 
-    [Fact]
-    public async Task Legacy_index_sandbox()
+    private async Task DeleteIndexAndWait(PineconeClient pinecone, string indexName)
     {
-        var indexName = "legacy-pod-based-index";
+        await pinecone.DeleteIndex(indexName);
 
-        var pinecone = new PineconeClient(UserSecrets.Read("PineconeApiKey"));
-
-        // check all existing indexes
-        var podIndexes = (await pinecone.ListIndexes()).Where(x => x.Spec.Pod is not null).Select(x => x.Name).ToList();
-        foreach (var podIndex in podIndexes)
-        {
-            // delete the previous pod-based index (only one is allowed on free plan)
-            await pinecone.DeleteIndex(indexName);
-        }
-
+        List<string> existingIndexes;
         var attemptCount = 0;
         // wait until old index has been deleted
         do
         {
             await Task.Delay(DelayInterval);
             attemptCount++;
-            podIndexes = (await pinecone.ListIndexes()).Where(x => x.Spec.Pod is not null).Select(x => x.Name).ToList();
+            existingIndexes = (await pinecone.ListIndexes()).Select(x => x.Name).ToList();
         }
-        while (podIndexes.Any() && attemptCount < MaxAttemptCount);
-
-        //this will get created but initialization fails later
-        await pinecone.CreatePodBasedIndex(indexName, 3, Metric.Cosine, "gcp-starter", "starter", 1);
-
-        var listIndexes = await pinecone.ListIndexes();
-
-        Assert.Contains(indexName, listIndexes.Select(x => x.Name));
+        while (existingIndexes.Contains(indexName) && attemptCount < MaxAttemptCount);
     }
 
-    [Theory]
-    [InlineData(Metric.DotProduct)]
-    [InlineData(Metric.Cosine)]
-    [InlineData(Metric.Euclidean)]
-    public async Task Create_and_delete_serverless_index(Metric metric)
+    [PineconeTheory]
+    [InlineData(Metric.DotProduct, true)]
+    [InlineData(Metric.Cosine, true)]
+    [InlineData(Metric.Euclidean, true)]
+    [InlineData(Metric.DotProduct, false)]
+    [InlineData(Metric.Cosine, false)]
+    [InlineData(Metric.Euclidean, false)]
+    public async Task Create_and_delete_index(Metric metric, bool serverless)
     {
-        var indexName = "serverless-index";
+        var indexName = serverless ? "serverless-index" : "pod-based-index";
 
-        var pinecone = new PineconeClient(UserSecrets.Read("PineconeApiKey"));
+        var pinecone = new PineconeClient(UserSecretsExtensions.ReadPineconeApiKey());
 
         // check for existing index
-        var podIndexes = (await pinecone.ListIndexes()).Select(x => x.Name).ToList();
-        if (podIndexes.Contains(indexName))
+        var existingIndexes = await pinecone.ListIndexes();
+        if (existingIndexes.Select(x => x.Name).Contains(indexName))
         {
             // delete the previous index
-            await pinecone.DeleteIndex(indexName);
+            await DeleteIndexAndWait(pinecone, indexName);
+            //await pinecone.DeleteIndex(indexName);
         }
 
-        var attemptCount = 0;
-        // wait until old index has been deleted
-        do
+        // if we create pod-based index, we need to create any previous gcp-starter indexes
+        // only one pod-based index is allowed on the starter environment
+        if (!serverless)
         {
-            await Task.Delay(DelayInterval);
-            attemptCount++;
-            podIndexes = (await pinecone.ListIndexes()).Select(x => x.Name).ToList();
+            foreach (var existingPodBasedIndex in existingIndexes.Where(x => x.Spec.Pod?.Environment == "gcp-starter"))
+            {
+                await DeleteIndexAndWait(pinecone, existingPodBasedIndex.Name);
+            }
         }
-        while (podIndexes.Contains(indexName) && attemptCount < MaxAttemptCount);
 
-        await pinecone.CreateServerlessIndex(indexName, 3, metric, "aws", "us-east-1");
+        if (serverless)
+        {
+            await pinecone.CreateServerlessIndex(indexName, 3, metric, "aws", "us-east-1");
+        }
+        else
+        {
+            await pinecone.CreatePodBasedIndex(indexName, 3, metric, "gcp-starter", "starter", 1);
+        }
 
         Index<GrpcTransport> index;
-        attemptCount = 0;
+        var attemptCount = 0;
         do
         {
             await Task.Delay(DelayInterval);
@@ -94,10 +90,10 @@ public class IndexTests
         await pinecone.DeleteIndex(indexName);
     }
 
-    [Fact]
+    [PineconeFact]
     public async Task List_collections()
     {
-        var pinecone = new PineconeClient(UserSecrets.Read("PineconeApiKey"));
+        var pinecone = new PineconeClient(UserSecretsExtensions.ReadPineconeApiKey());
         var collections = await pinecone.ListCollections();
     }
 }

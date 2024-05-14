@@ -1,15 +1,17 @@
 ﻿using Pinecone;
 using Pinecone.Grpc;
+using PineconeTests.Xunit;
 using Xunit;
 
 namespace PineconeTests;
 
 [Collection("PineconeTests")]
+[PineconeApiKeySetCondition]
 public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.TestFixture>
 {
     private TestFixture Fixture { get; } = fixture;
 
-    [Fact]
+    [PineconeFact]
     public async Task Basic_query()
     {
         var x = 0.314f;
@@ -29,7 +31,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         Assert.Equal(3, results.Length);
     }
 
-    [Fact]
+    [PineconeFact]
     public async Task Query_by_Id()
     {
         var result = await Fixture.Index.Query("basic-vector-3", topK: 2);
@@ -39,7 +41,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         Assert.Equal(2, result.Length);
     }
 
-    [Fact]
+    [PineconeFact]
     public async Task Query_with_basic_metadata_filter()
     {
         var filter = new MetadataMap
@@ -60,7 +62,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         Assert.Equal([2, 1, 3, 4, 7, 11, 18, 29], ordered[2].Values);
     }
 
-    [Fact]
+    [PineconeFact]
     public async Task Query_include_metadata_in_result()
     {
         var filter = new MetadataMap
@@ -84,7 +86,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         Assert.Equal("1", innerList[1]);
     }
 
-    [Fact]
+    [PineconeFact]
     public async Task Query_with_metadata_filter_composite()
     {
         var filter = new MetadataMap
@@ -104,7 +106,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         Assert.Equal([2, 1, 3, 4, 7, 11, 18, 29], ordered[1].Values);
     }
 
-    [Fact]
+    [PineconeFact]
     public async Task Query_with_metadata_list_contains()
     {
         var filter = new MetadataMap
@@ -123,7 +125,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         Assert.Equal([2, 1, 3, 4, 7, 11, 18, 29], ordered[1].Values);
     }
 
-    [Fact]
+    [PineconeFact]
     public async Task Basic_fetch()
     {
         var results = await Fixture.Index.Fetch(["basic-vector-1", "basic-vector-3"]);
@@ -140,7 +142,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         Assert.Equal([1.5f, 3.0f, 4.5f, 6.0f, 7.5f, 9.0f, 10.5f, 12.0f], orderedResults[1].Value.Values);
     }
 
-    [Fact]
+    [PineconeFact]
     public async Task Basic_vector_upsert_update_delete()
     {
         var testNamespace = "upsert-update-delete-namespace";
@@ -179,7 +181,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         await Fixture.DeleteAndWait(["update-vector-id-2", "update-vector-id-3"], testNamespace);
     }
 
-    [Fact]
+    [PineconeFact]
     public async Task Upsert_on_existing_vector_makes_an_update()
     {
         var testNamespace = "upsert-on-existing";
@@ -210,7 +212,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         Assert.Equal([0, 1, 1, 2, 3, 5, 8, 13], updatedVector.Values);
     }
 
-    [Fact]
+    [PineconeFact]
     public async Task Delete_all_vectors_from_namespace()
     {
         var testNamespace = "delete-all-namespace";
@@ -238,7 +240,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         Assert.Equal((uint)0, stats.Namespaces.Where(x => x.Name == testNamespace).Select(x => x.VectorCount).SingleOrDefault());
     }
 
-    [Fact]
+    [PineconeFact]
     public async Task Delete_vector_that_doesnt_exist()
     {
         await Fixture.Index.Delete(["non-existing-index"]);
@@ -256,7 +258,7 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
 
         public async Task InitializeAsync()
         {
-            Pinecone = new PineconeClient(UserSecrets.Read("PineconeApiKey"));
+            Pinecone = new PineconeClient(UserSecretsExtensions.ReadPineconeApiKey());
 
             await ClearIndexesAsync();
             await CreateIndexAndWait();
@@ -382,8 +384,11 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
 
         public async Task DisposeAsync()
         {
-            await ClearIndexesAsync();
-            Pinecone.Dispose();
+            if (Pinecone is not null)
+            {
+                await ClearIndexesAsync();
+                Pinecone.Dispose();
+            }
         }
 
         private async Task ClearIndexesAsync()

@@ -4,11 +4,19 @@ using Microsoft.Extensions.Configuration.UserSecrets;
 
 namespace PineconeTests;
 
-public class UserSecrets
+public static class UserSecretsExtensions
 {
-    public static string Read(string key)
+    public const string PineconeApiKeyUserSecretEntry = "PineconeApiKey";
+
+    public static string ReadPineconeApiKey()
         => JsonSerializer.Deserialize<Dictionary<string, string>>(
             File.ReadAllText(PathHelper.GetSecretsPathFromSecretsId(
-                typeof(UserSecrets).Assembly.GetCustomAttribute<UserSecretsIdAttribute>()!
-                    .UserSecretsId)))![key];
+                typeof(UserSecretsExtensions).Assembly.GetCustomAttribute<UserSecretsIdAttribute>()!
+                    .UserSecretsId)))![PineconeApiKeyUserSecretEntry];
+
+    public static bool ContainsPineconeApiKey()
+        => JsonSerializer.Deserialize<Dictionary<string, string>>(
+            File.ReadAllText(PathHelper.GetSecretsPathFromSecretsId(
+                typeof(UserSecretsExtensions).Assembly.GetCustomAttribute<UserSecretsIdAttribute>()!
+                    .UserSecretsId)))!.ContainsKey(PineconeApiKeyUserSecretEntry);
 }
