@@ -12,22 +12,6 @@ public class IndexTests
     private const int MaxAttemptCount = 300;
     private const int DelayInterval = 100;
 
-    private async Task DeleteIndexAndWait(PineconeClient pinecone, string indexName)
-    {
-        await pinecone.DeleteIndex(indexName);
-
-        List<string> existingIndexes;
-        var attemptCount = 0;
-        // wait until old index has been deleted
-        do
-        {
-            await Task.Delay(DelayInterval);
-            attemptCount++;
-            existingIndexes = (await pinecone.ListIndexes()).Select(x => x.Name).ToList();
-        }
-        while (existingIndexes.Contains(indexName) && attemptCount < MaxAttemptCount);
-    }
-
     [PineconeTheory]
     [InlineData(Metric.DotProduct, true)]
     [InlineData(Metric.Cosine, true)]
@@ -50,10 +34,11 @@ public class IndexTests
             //await pinecone.DeleteIndex(indexName);
         }
 
-        // if we create pod-based index, we need to create any previous gcp-starter indexes
+        // if we create pod-based index, we need to delete any previous gcp-starter indexes
         // only one pod-based index is allowed on the starter environment
         if (!serverless)
         {
+            existingIndexes = await pinecone.ListIndexes();
             foreach (var existingPodBasedIndex in existingIndexes.Where(x => x.Spec.Pod?.Environment == "gcp-starter"))
             {
                 await DeleteIndexAndWait(pinecone, existingPodBasedIndex.Name);
@@ -88,6 +73,22 @@ public class IndexTests
 
         // cleanup
         await pinecone.DeleteIndex(indexName);
+    }
+
+    private async Task DeleteIndexAndWait(PineconeClient pinecone, string indexName)
+    {
+        await pinecone.DeleteIndex(indexName);
+
+        List<string> existingIndexes;
+        var attemptCount = 0;
+        // wait until old index has been deleted
+        do
+        {
+            await Task.Delay(DelayInterval);
+            attemptCount++;
+            existingIndexes = (await pinecone.ListIndexes()).Select(x => x.Name).ToList();
+        }
+        while (existingIndexes.Contains(indexName) && attemptCount < MaxAttemptCount);
     }
 
     [PineconeFact]

@@ -1,15 +1,13 @@
 ﻿using Pinecone;
-using Pinecone.Grpc;
 using PineconeTests.Xunit;
 using Xunit;
 
 namespace PineconeTests;
 
-[Collection("PineconeTests")]
-[PineconeApiKeySetCondition]
-public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.TestFixture>
+public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<TFixture>
+    where TFixture: DataTestFixtureBase
 {
-    private TestFixture Fixture { get; } = fixture;
+    private TFixture Fixture { get; } = fixture;
 
     [PineconeFact]
     public async Task Basic_query()
@@ -164,11 +162,11 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         var attemptCount = 0;
         do
         {
-            await Task.Delay(TestFixture.DelayInterval);
+            await Task.Delay(DataTestFixtureBase.DelayInterval);
             attemptCount++;
             var finalFetch = await Fixture.Index.Fetch(["update-vector-id-2"], testNamespace);
             updatedVector = finalFetch["update-vector-id-2"];
-        } while (updatedVector.Values[0] != 23 && attemptCount < TestFixture.MaxAttemptCount);
+        } while (updatedVector.Values[0] != 23 && attemptCount < DataTestFixtureBase.MaxAttemptCount);
 
         Assert.Equal("update-vector-id-2", updatedVector.Id);
         Assert.Equal([23, 3, 5, 7, 11, 13, 17, 19], updatedVector.Values);
@@ -202,11 +200,11 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         var attemptCount = 0;
         do
         {
-            await Task.Delay(TestFixture.DelayInterval);
+            await Task.Delay(DataTestFixtureBase.DelayInterval);
             attemptCount++;
             var finalFetch = await Fixture.Index.Fetch(["update-vector-id-3"], testNamespace);
             updatedVector = finalFetch["update-vector-id-3"];
-        } while (updatedVector.Values[0] != 0 && attemptCount < TestFixture.MaxAttemptCount);
+        } while (updatedVector.Values[0] != 0 && attemptCount < DataTestFixtureBase.MaxAttemptCount);
 
         Assert.Equal("update-vector-id-3", updatedVector.Id);
         Assert.Equal([0, 1, 1, 2, 3, 5, 8, 13], updatedVector.Values);
@@ -231,11 +229,11 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
         var attemptCount = 0;
         do
         {
-            await Task.Delay(TestFixture.DelayInterval);
+            await Task.Delay(DataTestFixtureBase.DelayInterval);
             attemptCount++;
             stats = await Fixture.Index.DescribeStats();
         } while (stats.Namespaces.Where(x => x.Name == testNamespace).Select(x => x.VectorCount).SingleOrDefault() > 0 
-            && attemptCount <= TestFixture.MaxAttemptCount);
+            && attemptCount <= DataTestFixtureBase.MaxAttemptCount);
 
         Assert.Equal((uint)0, stats.Namespaces.Where(x => x.Name == testNamespace).Select(x => x.VectorCount).SingleOrDefault());
     }
@@ -244,181 +242,5 @@ public class DataTests(DataTests.TestFixture fixture) : IClassFixture<DataTests.
     public async Task Delete_vector_that_doesnt_exist()
     {
         await Fixture.Index.Delete(["non-existing-index"]);
-    }
-
-    public class TestFixture : IAsyncLifetime
-    {
-        // 10s with 100ms intervals
-        public const int MaxAttemptCount = 100;
-        public const int DelayInterval = 100;
-        private const string IndexName = "serverless-data-tests";
-
-        public PineconeClient Pinecone { get; private set; } = null!;
-        public Index<GrpcTransport> Index { get; private set; } = null!;
-
-        public async Task InitializeAsync()
-        {
-            Pinecone = new PineconeClient(UserSecretsExtensions.ReadPineconeApiKey());
-
-            await ClearIndexesAsync();
-            await CreateIndexAndWait();
-            await AddSampleDataAsync();
-        }
-
-        private async Task CreateIndexAndWait()
-        {
-            var attemptCount = 0;
-            await Pinecone.CreateServerlessIndex(IndexName, dimiension: 8, metric: Metric.Euclidean, cloud: "aws", region: "us-east-1");
-
-            do
-            {
-                await Task.Delay(DelayInterval);
-                attemptCount++;
-                Index = await Pinecone.GetIndex(IndexName);
-            } while (!Index.Status.IsReady && attemptCount <= MaxAttemptCount);
-
-            if (!Index.Status.IsReady)
-            {
-                throw new InvalidOperationException("'Create index' operation didn't complete in time. Index name: " + IndexName);
-            }
-        }
-
-        private async Task AddSampleDataAsync()
-        {
-            var basicVectors = Enumerable.Range(1, 5).Select(i => new Vector
-            {
-                Id = "basic-vector-" + i,
-                Values = [i * 0.5f, i * 1.0f, i * 1.5f, i * 2.0f, i * 2.5f, i * 3.0f, i * 3.5f, i * 4.0f],
-            }).ToList();
-
-            await InsertAndWait(basicVectors);
-
-            var customNamespaceVectors = Enumerable.Range(1, 3).Select(i => new Vector
-            {
-                Id = "custom-namespace-vector-" + i,
-                Values = [i * 1.1f, i * 2.2f, i * 3.3f, i * 4.4f, i * 5.5f, i * 6.6f, i * 7.7f, i * 8.8f],
-            }).ToList();
-
-            await InsertAndWait(customNamespaceVectors, "namespace1");
-
-            var metadata1 = new MetadataMap
-            {
-                ["type"] = "number set",
-                ["subtype"] = "primes",
-                ["rank"] = 3,
-                ["overhyped"] = false,
-                ["list"] = new string[] { "2", "1" }, 
-            };
-
-            var metadata2 = new MetadataMap
-            {
-                ["type"] = "number set",
-                ["subtype"] = "fibo",
-                ["list"] = new string[] { "0", "1" },
-            };
-
-            var metadata3 = new MetadataMap
-            {
-                ["type"] = "number set",
-                ["subtype"] = "lucas",
-                ["rank"] = 12,
-                ["overhyped"] = false,
-                ["list"] = new string[] { "two", "one" },
-            };
-
-            var metadataVectors = new Vector[]
-            {
-                new() { Id = "metadata-vector-1", Values = [2, 3, 5, 7, 11, 13, 17, 19], Metadata = metadata1 },
-                new() { Id = "metadata-vector-2", Values = [0, 1, 1, 2, 3, 5, 8, 13], Metadata = metadata2 },
-                new() { Id = "metadata-vector-3", Values = [2, 1, 3, 4, 7, 11, 18, 29], Metadata = metadata3 },
-            };
-
-            await InsertAndWait(metadataVectors);
-        }
-
-        public async Task<uint> InsertAndWait(IEnumerable<Vector> vectors, string? indexNamespace = null)
-        {
-            // NOTE: this only works when inserting *new* vectors, if the vector already exisits the new vector count won't match
-            // and we will have false-negative "failure" to insert
-            var stats = await Index.DescribeStats();
-            var vectorCountBefore = stats.TotalVectorCount;
-            var attemptCount = 0;
-            var result = await Index.Upsert(vectors, indexNamespace);
-
-            do
-            {
-                await Task.Delay(DelayInterval);
-                attemptCount++;
-                stats = await Index.DescribeStats();
-            } while (stats.TotalVectorCount < vectorCountBefore + vectors.Count() && attemptCount <= MaxAttemptCount);
-
-            if (stats.TotalVectorCount < vectorCountBefore + vectors.Count())
-            {
-                throw new InvalidOperationException("'Upsert' operation didn't complete in time. Vectors count: " + vectors.Count());
-            }
-
-            return result;
-        }
-
-        public async Task DeleteAndWait(IEnumerable<string> ids, string? indexNamespace = null)
-        {
-            var stats = await Index.DescribeStats();
-            var vectorCountBefore = stats.Namespaces.Single(x => x.Name == (indexNamespace ?? "")).VectorCount;
-
-            var attemptCount = 0;
-            await Index.Delete(ids, indexNamespace);
-            long vectorCount;
-            do
-            {
-                await Task.Delay(DelayInterval);
-                attemptCount++;
-                stats = await Index.DescribeStats();
-                vectorCount = stats.Namespaces.Single(x => x.Name == (indexNamespace ?? "")).VectorCount;
-            } while (vectorCount > vectorCountBefore - ids.Count() && attemptCount <= MaxAttemptCount);
-
-            if (vectorCount > vectorCountBefore - ids.Count())
-            {
-                throw new InvalidOperationException("'Delete' operation didn't complete in time.");
-            }
-        }
-
-        public async Task DisposeAsync()
-        {
-            if (Pinecone is not null)
-            {
-                await ClearIndexesAsync();
-                Pinecone.Dispose();
-            }
-        }
-
-        private async Task ClearIndexesAsync()
-        {
-            foreach (var existingIndex in await Pinecone.ListIndexes())
-            {
-                await DeleteExistingIndexAndWaitAsync(existingIndex.Name);
-            }
-        }
-
-        private async Task DeleteExistingIndexAndWaitAsync(string indexName)
-        {
-            var exists = true;
-            var attemptCount = 0;
-            await Pinecone.DeleteIndex(indexName);
-
-            do
-            {
-                await Task.Delay(DelayInterval);
-                var indexes = (await Pinecone.ListIndexes()).Select(x => x.Name).ToArray();
-                if (indexes.Length == 0 || !indexes.Contains(indexName))
-                {
-                    exists = false;
-                }
-            } while (exists && attemptCount <= MaxAttemptCount);
-
-            if (exists)
-            {
-                throw new InvalidOperationException("'Delete index' operation didn't complete in time. Index name: " + indexName);
-            }
-        }
     }
 }

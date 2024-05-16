@@ -10,21 +10,10 @@ namespace Pinecone;
 public sealed class PineconeClient : IDisposable
 {
     private readonly HttpClient Http;
-    private readonly string? _legacyEnvironment;
     
     public PineconeClient(string apiKey)
         : this(apiKey, new Uri($"https://api.pinecone.io"))
     {
-    }
-
-    public PineconeClient(string apiKey, string environment)
-    {
-        Guard.IsNotNullOrWhiteSpace(apiKey);
-        Guard.IsNotNullOrWhiteSpace(environment);
-
-        Http = new() { BaseAddress = new Uri($"https://controller.{environment}.pinecone.io") };
-        Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
-        _legacyEnvironment = environment;
     }
 
     public PineconeClient(string apiKey, Uri baseUrl)
@@ -45,55 +34,49 @@ public sealed class PineconeClient : IDisposable
         Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
     }
 
-    public async Task<IndexDetails[]> ListIndexes()
+    public async Task<IndexDetails[]> ListIndexes(CancellationToken cancellationToken = default)
     {
         var listIndexesResult = (ListIndexesResult?)await Http
-            .GetFromJsonAsync("/indexes", typeof(ListIndexesResult), SerializerContext.Default)
+            .GetFromJsonAsync("/indexes", typeof(ListIndexesResult), SerializerContext.Default, cancellationToken)
             .ConfigureAwait(false);
 
         return listIndexesResult?.Indexes ?? [];
     }
 
-    public Task CreatePodBasedIndex(string name, uint dimiension, Metric metric, string environment, string podType, long pods)
+    public Task CreatePodBasedIndex(string name, uint dimension, Metric metric, string environment, string podType, long pods, CancellationToken cancellationToken = default)
         => CreateIndexAsync(new CreateIndexRequest
         {
             Name = name,
-            Dimension = dimiension,
+            Dimension = dimension,
             Metric = metric,
             Spec = new IndexSpec { Pod = new PodSpec { Environment = environment, PodType = podType, Pods = pods } }
-        });
+        }, cancellationToken);
 
-    public Task CreateServerlessIndex(string name, uint dimiension, Metric metric, string cloud, string region)
+    public Task CreateServerlessIndex(string name, uint dimension, Metric metric, string cloud, string region, CancellationToken cancellationToken = default)
         => CreateIndexAsync(new CreateIndexRequest
         {
             Name = name,
-            Dimension = dimiension,
+            Dimension = dimension,
             Metric = metric,
             Spec = new IndexSpec { Serverless = new ServerlessSpec { Cloud = cloud, Region = region } }
-        });
+        }, cancellationToken);
 
-    private async Task CreateIndexAsync(CreateIndexRequest request)
+    private async Task CreateIndexAsync(CreateIndexRequest request, CancellationToken cancellationToken = default)
     {
         var response = await Http
-            .PostAsJsonAsync("/indexes", request, SerializerContext.Default.CreateIndexRequest)
+            .PostAsJsonAsync("/indexes", request, SerializerContext.Default.CreateIndexRequest, cancellationToken)
             .ConfigureAwait(false);
 
         await response.CheckStatusCode().ConfigureAwait(false);
     }
 
-    [Obsolete($"Use '{nameof(CreateServerlessIndex)}' or '{nameof(CreatePodBasedIndex)}' methods instead.")]
-    public Task CreateIndex(string name, uint dimension, Metric metric) 
-        => _legacyEnvironment is not null
-            ? CreatePodBasedIndex(name, dimension, metric, _legacyEnvironment, "starter", 1)
-            : throw new InvalidOperationException($"Use '{nameof(CreateServerlessIndex)}' or '{nameof(CreatePodBasedIndex)}' methods instead.");
-
-    public Task<Index<GrpcTransport>> GetIndex(string name) => GetIndex<GrpcTransport>(name);
+    public Task<Index<GrpcTransport>> GetIndex(string name, CancellationToken cancellationToken = default) => GetIndex<GrpcTransport>(name, cancellationToken);
 
 #if NET7_0_OR_GREATER
-    public async Task<Index<TTransport>> GetIndex<TTransport>(string name)
+    public async Task<Index<TTransport>> GetIndex<TTransport>(string name, CancellationToken cancellationToken = default)
 #else
     public async Task<Index<TTransport>> GetIndex<
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransport>(string name)
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransport>(string name, CancellationToken cancellationToken = default)
 #endif
         where TTransport : ITransport<TTransport>
     {
@@ -101,7 +84,8 @@ public sealed class PineconeClient : IDisposable
             .GetFromJsonAsync(
                 $"/indexes/{UrlEncoder.Default.Encode(name)}",
                 typeof(IndexDetails),
-                SerializerContext.Default)
+                SerializerContext.Default,
+                cancellationToken)
             .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed."));
 
         // TODO: Host is optional according to the API spec: https://docs.pinecone.io/reference/api/control-plane/describe_index
@@ -128,7 +112,7 @@ public sealed class PineconeClient : IDisposable
         return index;
     }
 
-    public async Task ConfigureIndex(string name, int? replicas = null, string? podType = null)
+    public async Task ConfigureIndex(string name, int? replicas = null, string? podType = null, CancellationToken cancellationToken = default)
     {
         if (replicas is null && podType is null or [])
         {
@@ -141,47 +125,52 @@ public sealed class PineconeClient : IDisposable
             .PatchAsJsonAsync(
                 $"/indexes/{UrlEncoder.Default.Encode(name)}",
                 request,
-                SerializerContext.Default.ConfigureIndexRequest)
+                SerializerContext.Default.ConfigureIndexRequest,
+                cancellationToken)
             .ConfigureAwait(false);
 
         await response.CheckStatusCode().ConfigureAwait(false);
     }
 
-    public async Task DeleteIndex(string name) =>
-        await (await Http.DeleteAsync($"/indexes/{UrlEncoder.Default.Encode(name)}").ConfigureAwait(false))
+    public async Task DeleteIndex(string name, CancellationToken cancellationToken = default) =>
+        await (await Http.DeleteAsync($"/indexes/{UrlEncoder.Default.Encode(name)}", cancellationToken).ConfigureAwait(false))
             .CheckStatusCode()
             .ConfigureAwait(false);
 
-    public async Task<CollectionDetails[]> ListCollections()
+    public async Task<CollectionDetails[]> ListCollections(CancellationToken cancellationToken = default)
     {
         var listCollectionsResult = (ListCollectionsResult?)await Http
-            .GetFromJsonAsync("/collections", typeof(ListCollectionsResult), SerializerContext.Default)
+            .GetFromJsonAsync("/collections", typeof(ListCollectionsResult), 
+            SerializerContext.Default,
+            cancellationToken)
             .ConfigureAwait(false);
 
         return listCollectionsResult?.Collections ?? [];
     }
 
-    public async Task CreateCollection(string name, string source)
+    public async Task CreateCollection(string name, string source, CancellationToken cancellationToken = default)
     {
         var request = new CreateCollectionRequest { Name = name, Source = source };
         var response = await Http
-            .PostAsJsonAsync("/collections", request, SerializerContext.Default.CreateCollectionRequest)
+            .PostAsJsonAsync("/collections", request, SerializerContext.Default.CreateCollectionRequest,
+            cancellationToken)
             .ConfigureAwait(false);
 
         await response.CheckStatusCode().ConfigureAwait(false);
     }
 
-    public async Task<CollectionDetails> DescribeCollection(string name)
+    public async Task<CollectionDetails> DescribeCollection(string name, CancellationToken cancellationToken = default)
     {
         return await Http
             .GetFromJsonAsync(
                 $"/collections/{UrlEncoder.Default.Encode(name)}",
-                SerializerContext.Default.CollectionDetails)
+                SerializerContext.Default.CollectionDetails, 
+                cancellationToken)
             .ConfigureAwait(false) ?? ThrowHelpers.JsonException<CollectionDetails>();
     }
 
-    public async Task DeleteCollection(string name) =>
-        await (await Http.DeleteAsync($"/collections/{UrlEncoder.Default.Encode(name)}"))
+    public async Task DeleteCollection(string name, CancellationToken cancellationToken = default) =>
+        await (await Http.DeleteAsync($"/collections/{UrlEncoder.Default.Encode(name)}", cancellationToken))
             .CheckStatusCode()
             .ConfigureAwait(false);
 
