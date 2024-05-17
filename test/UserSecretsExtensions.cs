@@ -22,8 +22,13 @@ public static class UserSecretsExtensions
             return false;
         }
 
+        var path = PathHelper.GetSecretsPathFromSecretsId(userSecretsIdAttribute.UserSecretsId);
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
         return JsonSerializer.Deserialize<Dictionary<string, string>>(
-            File.ReadAllText(PathHelper.GetSecretsPathFromSecretsId(
-                userSecretsIdAttribute.UserSecretsId)))!.ContainsKey(PineconeApiKeyUserSecretEntry);
+            File.ReadAllText(path))!.ContainsKey(PineconeApiKeyUserSecretEntry);
     }
 }

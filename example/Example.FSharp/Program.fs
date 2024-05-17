@@ -1,4 +1,5 @@
-﻿open Pinecone
+﻿#nowarn "3391"
+open Pinecone
 open System.Collections.Generic
 
 let createMetadata x =
@@ -14,7 +15,7 @@ let main = task {
     let! indexList = pinecone.ListIndexes()
     if not (indexList |> Array.exists (fun index -> index.Name = indexName)) then
         // free serverless indexes are currently only available on AWS us-east-1
-        pinecone.CreateServerlessIndex(indexName, 1536u, Metric.Cosine, "aws", "us-east-1")
+        do! pinecone.CreateServerlessIndex(indexName, 1536u, Metric.Cosine, "aws", "us-east-1")
 
     // Get the Pinecone index by name (uses gRPC by default).
     // The index client is thread-safe, consider caching and/or
