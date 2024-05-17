@@ -27,5 +27,5 @@ jobs:
     - name: Run dotnet-releaser
       shell: bash
       run: |
-        dotnet user-secrets set "PineconeApiKey" "${{secrets.PINECONE_API_KEY}}"
+        dotnet user-secrets set "PineconeApiKey" "${{secrets.PINECONE_API_KEY}}" --project test
         dotnet-releaser run --nuget-token "${{secrets.NUGET_TOKEN}}" --github-token "${{secrets.GITHUB_TOKEN}}" dotnet-releaser.toml
