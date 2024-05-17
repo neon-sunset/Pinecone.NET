@@ -54,7 +54,7 @@ public sealed partial record Index<TTransport> : IDisposable
     /// The transport layer.
     /// </summary>
     [JsonIgnore]
-    internal TTransport Transport { get; set; } = default!;
+    public required TTransport Transport { private get; init; }
 
     /// <summary>
     /// Returns statistics describing the contents of an index, including the vector count per namespace and the number of dimensions, and the index fullness.

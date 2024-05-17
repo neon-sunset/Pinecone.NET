@@ -149,13 +149,12 @@ public sealed class PineconeClient : IDisposable
 #endif
         where TTransport : ITransport<TTransport>
     {
-        var response = (IndexDetails)(await Http
+        var response = await Http
             .GetFromJsonAsync(
                 $"/indexes/{UrlEncoder.Default.Encode(name)}",
-                typeof(IndexDetails),
-                SerializerContext.Default,
+                SerializerContext.Default.IndexDetails,
                 cancellationToken)
-            .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed."));
+            .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed.");
 
         // TODO: Host is optional according to the API spec: https://docs.pinecone.io/reference/api/control-plane/describe_index
         // but Transport requires it
@@ -170,13 +169,12 @@ public sealed class PineconeClient : IDisposable
             Host = response.Host,
             Spec = response.Spec,
             Status = response.Status,
-        };
-
 #if NET7_0_OR_GREATER
-        index.Transport = TTransport.Create(host, apiKey);
+            Transport = TTransport.Create(host, apiKey)
 #else
-        index.Transport = ITransport<TTransport>.Create(host, apiKey);
+            Transport = ITransport<TTransport>.Create(host, apiKey)
 #endif
+        };
 
         return index;
     }
