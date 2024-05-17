@@ -143,10 +143,10 @@ public abstract class DataTestFixtureBase : IAsyncLifetime
 
     private async Task ClearIndexesAsync()
     {
-        var indexes = await Pinecone.ListIndexes();
-        var deletions = indexes.Select(x => DeleteExistingIndexAndWaitAsync(x.Name));
-
-        await Task.WhenAll(deletions);
+        foreach (var existingIndex in await Pinecone.ListIndexes())
+        {
+            await DeleteExistingIndexAndWaitAsync(existingIndex.Name);
+        }
     }
 
     private async Task DeleteExistingIndexAndWaitAsync(string indexName)
