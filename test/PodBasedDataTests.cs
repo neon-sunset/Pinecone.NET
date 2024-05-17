@@ -15,7 +15,7 @@ public class PodBasedDataTests(PodBasedDataTests.PodBasedDataTestFixture fixture
         protected override async Task CreateIndexAndWait()
         {
             var attemptCount = 0;
-            await Pinecone.CreatePodBasedIndex(IndexName, dimension: 8, metric: Metric.Cosine, environment: "gcp-starter", podType: "starter", pods: 1);
+            await Pinecone.CreatePodBasedIndex(IndexName, dimension: 8, metric: Metric.DotProduct, environment: "gcp-starter");
 
             do
             {

@@ -3,37 +3,84 @@ using Pinecone.Rest;
 
 namespace Pinecone;
 
-public record ListIndexesResult
-{
-    public required IndexDetails[] Indexes { get; init; }
-}
-
+/// <summary>
+/// Object storing information about the index.
+/// </summary>
 public record IndexDetails
 {
+    /// <summary>
+    /// Name of the index.
+    /// </summary>
     public required string Name { get; init; }
+
+    /// <summary>
+    /// The dimension of the indexed vectors.
+    /// </summary>
     public required uint Dimension { get; init; }
+
+    /// <summary>
+    /// The distance metric used for similarity search.
+    /// </summary>
     public required Metric Metric { get; init; }
+
+    /// <summary>
+    /// The URL address where the index is hosted.
+    /// </summary>
     public string? Host { get; init; }
 
+    /// <summary>
+    /// Additional information about the index.
+    /// </summary>
     public required IndexSpec Spec { get; init;}
+
+    /// <summary>
+    /// The current status of the index.
+    /// </summary>
     public required IndexStatus Status { get; init; }
 }
 
+/// <summary>
+/// The distance metric used for similarity search.
+/// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<Metric>))]
 public enum Metric
 {
+    /// <summary>
+    /// A measure of the angle between two vectors. It is computed by taking the dot product of the vectors and dividing it by the product of their magnitudes.
+    /// </summary>
     [JsonPropertyName("cosine")] Cosine = 0,
+
+    /// <summary>
+    /// Calculated by adding the products of the vectors' corresponding components.
+    /// </summary>
     [JsonPropertyName("dotproduct")] DotProduct = 1,
+
+    /// <summary>
+    /// Straight-line distance between two vectors in a multidimensional space.
+    /// </summary>
     [JsonPropertyName("euclidean")] Euclidean = 2
 }
 
+/// <summary>
+/// Current status of the index.
+/// </summary>
 public record IndexStatus
 {
+    /// <summary>
+    /// A value indicating whether the index is ready.
+    /// </summary>
     [JsonPropertyName("ready")]
     public required bool IsReady { get; init; }
+
+    /// <summary>
+    /// Current state of the index.
+    /// </summary>
     public required IndexState State { get; init; }
 }
 
+/// <summary>
+/// Current state of the index.
+/// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<IndexState>))]
 public enum IndexState
 {
@@ -47,46 +94,130 @@ public enum IndexState
     InitializationFailed = 7
 }
 
+/// <summary>
+/// Index specification.
+/// </summary>
 public record IndexSpec
 {
+    /// <summary>
+    /// Serverless index specification. <see langword="null" /> if the index is pod-based.
+    /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ServerlessSpec? Serverless { get; init; }
-    
+
+    /// <summary>
+    /// Pod-based index specification. <see langword="null" /> if the index is serverless.
+    /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public PodSpec? Pod { get; init; }
 }
 
+/// <summary>
+/// Serverless index specification.
+/// </summary>
 public record ServerlessSpec
 {
+    /// <summary>
+    /// The public cloud where the index is hosted.
+    /// </summary>
     public required string Cloud { get; init; }
+
+    /// <summary>
+    /// The region where the index has been created.
+    /// </summary>
     public required string Region { get; init; }
 }
 
+/// <summary>
+/// Pod-based index specification.
+/// </summary>
 public record PodSpec
 {
+    /// <summary>
+    /// The environment where the index is hosted.
+    /// </summary>
     [JsonPropertyName("environment")]
     public required string Environment { get; init; }
-    public long? Replicas { get; init; }
+
+    /// <summary>
+    /// The pod type.
+    /// </summary>
     [JsonPropertyName("pod_type")]
     public required string PodType { get; init; }
-    public long Pods { get; init; }
+
+    /// <summary>
+    /// The number of pods used.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Pods { get; init; }
+
+    /// <summary>
+    /// The number od replicas.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Replicas { get; init; }
+
+    /// <summary>
+    /// The number of shards.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Shards { get; init; }
+
+    /// <summary>
+    /// Configuration for the behavior of internal metadata index. By default, all metadata is indexed. 
+    /// When MetadataConfig is present, only specified metadata fields are indexed.
+    /// </summary>
     [JsonPropertyName("metadata_config")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public MetadataMap? MetadataConfig { get; init; }
+
+    /// <summary>
+    /// The name of the collection used as the source for the index.
+    /// </summary>
     [JsonPropertyName("source_collection")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SourceCollection { get; init; }
 }
 
+/// <summary>
+/// Statistics describing the contents of an index.
+/// </summary>
 public record IndexStats
 {
+    /// <summary>
+    /// List of namespaces.
+    /// </summary>
     [JsonConverter(typeof(IndexNamespaceArrayConverter))]
     public required IndexNamespace[] Namespaces { get; init; }
+
+    /// <summary>
+    /// The dimension of the indexed vectors.
+    /// </summary>
     public required uint Dimension { get; init; }
+
+    /// <summary>
+    /// The fullness of the index, regardless of whether a metadata filter expression was passed.
+    /// </summary>
     public required float IndexFullness { get; init; }
+    
+    /// <summary>
+    /// Total number of vectors stored in the index.
+    /// </summary>
     public required uint TotalVectorCount { get; init; }
 }
 
+/// <summary>
+/// Information about a single namespace.
+/// </summary>
 public readonly record struct IndexNamespace
 {
+    /// <summary>
+    /// Namespace name.
+    /// </summary>
     public required string Name { get; init; }
+
+    /// <summary>
+    /// Number of vectors stored in the namespace.
+    /// </summary>
     public required uint VectorCount { get; init; }
 }

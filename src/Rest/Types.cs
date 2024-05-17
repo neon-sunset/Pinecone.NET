@@ -2,6 +2,11 @@ using System.Text.Json.Serialization;
 
 namespace Pinecone.Rest;
 
+internal sealed record ListIndexesResult
+{
+    public required IndexDetails[] Indexes { get; init; }
+}
+
 internal sealed record CreateIndexRequest
 {
     public required string Name { get; init; }

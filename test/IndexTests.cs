@@ -51,7 +51,7 @@ public class IndexTests
         }
         else
         {
-            await pinecone.CreatePodBasedIndex(indexName, 3, metric, "gcp-starter", "starter", 1);
+            await pinecone.CreatePodBasedIndex(indexName, 3, metric, "gcp-starter");
         }
 
         Index<GrpcTransport> index;

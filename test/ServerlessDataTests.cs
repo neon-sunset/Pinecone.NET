@@ -15,7 +15,7 @@ public class ServerlessDataTests(ServerlessDataTests.ServerlessDataTestFixture f
         protected override async Task CreateIndexAndWait()
         {
             var attemptCount = 0;
-            await Pinecone.CreateServerlessIndex(IndexName, dimension: 8, metric: Metric.Cosine, cloud: "aws", region: "us-east-1");
+            await Pinecone.CreateServerlessIndex(IndexName, dimension: 8, metric: Metric.DotProduct, cloud: "aws", region: "us-east-1");
 
             do
             {

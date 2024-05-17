@@ -79,12 +79,20 @@ public abstract class DataTestFixtureBase : IAsyncLifetime
 
         var metadataVectors = new Vector[]
         {
-                new() { Id = "metadata-vector-1", Values = [2, 3, 5, 7, 11, 13, 17, 19], Metadata = metadata1 },
-                new() { Id = "metadata-vector-2", Values = [0, 1, 1, 2, 3, 5, 8, 13], Metadata = metadata2 },
-                new() { Id = "metadata-vector-3", Values = [2, 1, 3, 4, 7, 11, 18, 29], Metadata = metadata3 },
+            new() { Id = "metadata-vector-1", Values = [2, 3, 5, 7, 11, 13, 17, 19], Metadata = metadata1 },
+            new() { Id = "metadata-vector-2", Values = [0, 1, 1, 2, 3, 5, 8, 13], Metadata = metadata2 },
+            new() { Id = "metadata-vector-3", Values = [2, 1, 3, 4, 7, 11, 18, 29], Metadata = metadata3 },
         };
 
         await InsertAndWait(metadataVectors);
+
+        var sparseVectors = new Vector[]
+        {
+            new() { Id = "sparse-1", Values = [5, 10, 15, 20, 25, 30, 35, 40], SparseValues = new() { Indices = [1, 4], Values = [0.2f, 0.5f] } },
+            new() { Id = "sparse-2", Values = [15, 110, 115, 120, 125, 130, 135, 140], SparseValues = new() { Indices = [2, 3], Values = [0.5f, 0.8f] } },
+        };
+
+        await InsertAndWait(sparseVectors);
     }
 
     public virtual async Task<uint> InsertAndWait(IEnumerable<Vector> vectors, string? indexNamespace = null)

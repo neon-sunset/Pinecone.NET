@@ -15,8 +15,15 @@ public static class UserSecretsExtensions
                     .UserSecretsId)))![PineconeApiKeyUserSecretEntry];
 
     public static bool ContainsPineconeApiKey()
-        => JsonSerializer.Deserialize<Dictionary<string, string>>(
+    {
+        var userSecretsIdAttribute = typeof(UserSecretsExtensions).Assembly.GetCustomAttribute<UserSecretsIdAttribute>();
+        if (userSecretsIdAttribute == null)
+        {
+            return false;
+        }
+
+        return JsonSerializer.Deserialize<Dictionary<string, string>>(
             File.ReadAllText(PathHelper.GetSecretsPathFromSecretsId(
-                typeof(UserSecretsExtensions).Assembly.GetCustomAttribute<UserSecretsIdAttribute>()!
-                    .UserSecretsId)))!.ContainsKey(PineconeApiKeyUserSecretEntry);
+                userSecretsIdAttribute.UserSecretsId)))!.ContainsKey(PineconeApiKeyUserSecretEntry);
+    }
 }

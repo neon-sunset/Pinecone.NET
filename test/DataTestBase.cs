@@ -16,9 +16,9 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
 
         var results = await Fixture.Index.Query(
             [x * 0.1f, x * 0.2f, x * 0.3f, x * 0.4f, x * 0.5f, x * 0.6f, x * 0.7f, x * 0.8f],
-            topK: 10);
+            topK: 20);
 
-        Assert.Equal(8, results.Length);
+        Assert.Equal(10, results.Length);
 
         results =
             await Fixture.Index.Query(
@@ -138,6 +138,22 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
         Assert.Equal("basic-vector-3", orderedResults[1].Key);
         Assert.Equal("basic-vector-3", orderedResults[1].Value.Id);
         Assert.Equal([1.5f, 3.0f, 4.5f, 6.0f, 7.5f, 9.0f, 10.5f, 12.0f], orderedResults[1].Value.Values);
+    }
+
+    [PineconeFact]
+    public async Task Fetch_sparse_vector()
+    {
+        var results = await Fixture.Index.Fetch(["sparse-1"]);
+
+        Assert.Single(results);
+        Assert.True(results.ContainsKey("sparse-1"));
+        var resultVector = results["sparse-1"];
+
+        Assert.Equal("sparse-1", resultVector.Id);
+        Assert.Equal([5, 10, 15, 20, 25, 30, 35, 40], resultVector.Values);
+        Assert.NotNull(resultVector.SparseValues);
+        Assert.Equal([1, 4], resultVector.SparseValues.Value.Indices);
+        Assert.Equal([0.2f, 0.5f], resultVector.SparseValues.Value.Values);
     }
 
     [PineconeFact]
