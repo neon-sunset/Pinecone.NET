@@ -77,18 +77,26 @@ public class IndexTests
 
     private async Task DeleteIndexAndWait(PineconeClient pinecone, string indexName)
     {
-        await pinecone.DeleteIndex(indexName);
-
-        List<string> existingIndexes;
-        var attemptCount = 0;
-        // wait until old index has been deleted
-        do
+        try
         {
-            await Task.Delay(DelayInterval);
-            attemptCount++;
-            existingIndexes = (await pinecone.ListIndexes()).Select(x => x.Name).ToList();
+            await pinecone.DeleteIndex(indexName);
+
+            List<string> existingIndexes;
+            var attemptCount = 0;
+            // wait until old index has been deleted
+            do
+            {
+                await Task.Delay(DelayInterval);
+                attemptCount++;
+                existingIndexes = (await pinecone.ListIndexes()).Select(x => x.Name).ToList();
+            }
+            while (existingIndexes.Contains(indexName) && attemptCount < MaxAttemptCount);
         }
-        while (existingIndexes.Contains(indexName) && attemptCount < MaxAttemptCount);
+        // TODO: This is a questionable workaround but does the job for now
+        catch (HttpRequestException ex) when (ex.Message.Contains("NOT_FOUND"))
+        {
+            // index was already deleted
+        }
     }
 
     [PineconeFact]
