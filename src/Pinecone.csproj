@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>Pinecone.NET</PackageId>
-    <Authors>neon-sunset</Authors>
+    <Authors>neon-sunset, maumar</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/neon-sunset/Pinecone.NET</RepositoryUrl>
     <PackageProjectUrl>https://github.com/neon-sunset/Pinecone.NET</PackageProjectUrl>
