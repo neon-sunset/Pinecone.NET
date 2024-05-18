@@ -19,6 +19,7 @@ In the absence of an official SDK, it provides first-class support for Pinecone 
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>12</LangVersion>
     <Nullable>enable</Nullable>
+    <NoWarn>CS1573;CS1591</NoWarn>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
