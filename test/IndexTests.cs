@@ -31,7 +31,6 @@ public class IndexTests
         {
             // delete the previous index
             await DeleteIndexAndWait(pinecone, indexName);
-            //await pinecone.DeleteIndex(indexName);
         }
 
         // if we create pod-based index, we need to delete any previous gcp-starter indexes

@@ -84,9 +84,9 @@ public sealed class PineconeClient : IDisposable
         Metric metric, 
         string environment, 
         string podType = "p1.x1", 
-        long? pods = 1, 
-        long? shards = 1, 
-        long? replicas = 1, 
+        uint? pods = 1, 
+        uint? shards = 1, 
+        uint? replicas = 1, 
         CancellationToken cancellationToken = default)
         => CreateIndexAsync(new CreateIndexRequest
         {

@@ -124,6 +124,36 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
     }
 
     [PineconeFact]
+    public async Task Query_with_metadata_complex()
+    {
+        var filter = new MetadataMap
+        {
+            ["$or"] = new List<MetadataValue> 
+            { 
+                new MetadataMap() { ["rank"] = new MetadataMap() { ["$gt"] = 10 } }, 
+                new MetadataMap() 
+                { 
+                    ["$and"] = new List<MetadataValue>
+                    {
+                        new MetadataMap() { ["subtype"] = "primes" },
+                        new MetadataMap() { ["overhyped"] = false }
+                    }
+                } 
+            }
+        };
+
+        var result = await Fixture.Index.Query([3, 4, 5, 6, 7, 8, 9, 10], topK: 10, filter, includeMetadata: true);
+
+        Assert.Equal(2, result.Length);
+        var ordered = result.OrderBy(x => x.Id).ToList();
+
+        Assert.Equal("metadata-vector-1", ordered[0].Id);
+        Assert.Equal([2, 3, 5, 7, 11, 13, 17, 19], ordered[0].Values);
+        Assert.Equal("metadata-vector-3", ordered[1].Id);
+        Assert.Equal([2, 1, 3, 4, 7, 11, 18, 29], ordered[1].Values);
+    }
+
+    [PineconeFact]
     public async Task Basic_fetch()
     {
         var results = await Fixture.Index.Fetch(["basic-vector-1", "basic-vector-3"]);

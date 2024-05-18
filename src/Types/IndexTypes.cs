@@ -149,19 +149,19 @@ public record PodSpec
     /// The number of pods used.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public long? Pods { get; init; }
+    public uint? Pods { get; init; }
 
     /// <summary>
     /// The number od replicas.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public long? Replicas { get; init; }
+    public uint? Replicas { get; init; }
 
     /// <summary>
     /// The number of shards.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public long? Shards { get; init; }
+    public uint? Shards { get; init; }
 
     /// <summary>
     /// Configuration for the behavior of internal metadata index. By default, all metadata is indexed. 
