@@ -25,7 +25,7 @@ public sealed class PineconeFactTestCase : XunitTestCase
         IMessageBus messageBus,
         object[] constructorArguments,
         ExceptionAggregator aggregator,
-        CancellationTokenSource cancellationTokenSource)
+        CancellationTokenSource ctSource)
         => await XunitTestCaseExtensions.TrySkipAsync(this, messageBus)
             ? new RunSummary { Total = 1, Skipped = 1 }
             : await base.RunAsync(
@@ -33,5 +33,5 @@ public sealed class PineconeFactTestCase : XunitTestCase
                 messageBus,
                 constructorArguments,
                 aggregator,
-                cancellationTokenSource);
+                ctSource);
 }

@@ -33,7 +33,7 @@ public interface ITransport<
     }
 #endif
 
-    Task<IndexStats> DescribeStats(MetadataMap? filter = null);
+    Task<IndexStats> DescribeStats(MetadataMap? filter = null, CancellationToken ct = default);
     Task<ScoredVector[]> Query(
         string? id,
         float[]? values,
@@ -42,17 +42,19 @@ public interface ITransport<
         MetadataMap? filter,
         string? indexNamespace,
         bool includeValues,
-        bool includeMetadata);
-    Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null);
-    Task Update(Vector vector, string? indexNamespace = null);
+        bool includeMetadata,
+        CancellationToken ct = default);
+    Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null, CancellationToken ct = default);
+    Task Update(Vector vector, string? indexNamespace = null, CancellationToken ct = default);
     Task Update(
         string id,
         float[]? values = null,
         SparseVector? sparseValues = null,
         MetadataMap? metadata = null,
-        string? indexNamespace = null);
-    Task<Dictionary<string, Vector>> Fetch(IEnumerable<string> ids, string? indexNamespace = null);
-    Task Delete(IEnumerable<string> ids, string? indexNamespace = null);
-    Task Delete(MetadataMap filter, string? indexNamespace = null);
-    Task DeleteAll(string? indexNamespace = null);
+        string? indexNamespace = null,
+        CancellationToken ct = default);
+    Task<Dictionary<string, Vector>> Fetch(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default);
+    Task Delete(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default);
+    Task Delete(MetadataMap filter, string? indexNamespace = null, CancellationToken ct = default);
+    Task DeleteAll(string? indexNamespace = null, CancellationToken ct = default);
 }

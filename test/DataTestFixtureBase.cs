@@ -143,27 +143,36 @@ public abstract class DataTestFixtureBase : IAsyncLifetime
 
     private async Task ClearIndexesAsync()
     {
-        foreach (var existingIndex in await Pinecone.ListIndexes())
-        {
-            await DeleteExistingIndexAndWaitAsync(existingIndex.Name);
-        }
+        var indexes = await Pinecone.ListIndexes();
+        var deletions = indexes.Select(x => DeleteExistingIndexAndWaitAsync(x.Name));
+
+        await Task.WhenAll(deletions);
     }
 
     private async Task DeleteExistingIndexAndWaitAsync(string indexName)
     {
         var exists = true;
-        var attemptCount = 0;
-        await Pinecone.DeleteIndex(indexName);
-
-        do
+        try
         {
-            await Task.Delay(DelayInterval);
-            var indexes = (await Pinecone.ListIndexes()).Select(x => x.Name).ToArray();
-            if (indexes.Length == 0 || !indexes.Contains(indexName))
+            var attemptCount = 0;
+            await Pinecone.DeleteIndex(indexName);
+
+            do
             {
-                exists = false;
-            }
-        } while (exists && attemptCount <= MaxAttemptCount);
+                await Task.Delay(DelayInterval);
+                var indexes = (await Pinecone.ListIndexes()).Select(x => x.Name).ToArray();
+                if (indexes.Length == 0 || !indexes.Contains(indexName))
+                {
+                    exists = false;
+                }
+            } while (exists && attemptCount <= MaxAttemptCount);
+        }
+        // TODO: This is a questionable workaround but does the job for now
+        catch (HttpRequestException ex) when (ex.Message.Contains("NOT_FOUND"))
+        {
+            // index was already deleted
+            exists = false;
+        }
 
         if (exists)
         {

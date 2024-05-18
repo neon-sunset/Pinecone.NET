@@ -61,9 +61,9 @@ public sealed partial record Index<TTransport> : IDisposable
     /// </summary>
     /// <param name="filter">The operation only returns statistics for vectors that satisfy the filter.</param>
     /// <returns>An <see cref="IndexStats"/> object containing index statistics.</returns>
-    public Task<IndexStats> DescribeStats(MetadataMap? filter = null)
+    public Task<IndexStats> DescribeStats(MetadataMap? filter = null, CancellationToken ct = default)
     {
-        return Transport.DescribeStats(filter);
+        return Transport.DescribeStats(filter, ct);
     }
 
     /// <summary>
@@ -71,8 +71,6 @@ public sealed partial record Index<TTransport> : IDisposable
     /// </summary>
     /// <remarks>Query by ID uses Approximate Nearest Neighbor, which doesn't guarantee the input vector to appear in the results. To ensure that, use the Fetch operation instead.</remarks>
     /// <param name="id">The unique ID of the vector to be used as a query vector.</param>
-    /// <param name="values">The query vector. This should be the same length as the dimension of the index being queried.</param>
-    /// <param name="sparseValues">Vector sparse data. Represented as a list of indices and a list of corresponded values, which must be with the same length.</param>
     /// <param name="topK">The number of results to return for each query.</param>
     /// <param name="filter">The filter to apply.</param>
     /// <param name="indexNamespace">Namespace to query from. If no namespace is provided, the operation applies to all namespaces.</param>
@@ -85,7 +83,8 @@ public sealed partial record Index<TTransport> : IDisposable
         MetadataMap? filter = null,
         string? indexNamespace = null,
         bool includeValues = true,
-        bool includeMetadata = false)
+        bool includeMetadata = false,
+        CancellationToken ct = default)
     {
         return Transport.Query(
             id: id,
@@ -95,7 +94,8 @@ public sealed partial record Index<TTransport> : IDisposable
             filter: filter,
             indexNamespace: indexNamespace,
             includeValues: includeValues,
-            includeMetadata: includeMetadata);
+            includeMetadata: includeMetadata,
+            ct: ct);
     }
 
     /// <summary>
@@ -116,7 +116,8 @@ public sealed partial record Index<TTransport> : IDisposable
         SparseVector? sparseValues = null,
         string? indexNamespace = null,
         bool includeValues = true,
-        bool includeMetadata = false)
+        bool includeMetadata = false,
+        CancellationToken ct = default)
     {
         return Transport.Query(
             id: null,
@@ -126,7 +127,8 @@ public sealed partial record Index<TTransport> : IDisposable
             filter: filter,
             indexNamespace: indexNamespace,
             includeValues: includeValues,
-            includeMetadata: includeMetadata);
+            includeMetadata: includeMetadata,
+            ct: ct);
     }
 
     /// <summary>
@@ -135,9 +137,9 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="vectors">A collection of <see cref="Vector"/> objects to upsert.</param>
     /// <param name="indexNamespace">Namespace to write the vector to. If no namespace is provided, the operation applies to all namespaces.</param>
     /// <returns>The number of vectors upserted.</returns>
-    public Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null)
+    public Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Transport.Upsert(vectors, indexNamespace);
+        return Transport.Upsert(vectors, indexNamespace, ct);
     }
 
     /// <summary>
@@ -145,9 +147,9 @@ public sealed partial record Index<TTransport> : IDisposable
     /// </summary>
     /// <param name="vector"><see cref="Vector"/> object containing updated information.</param>
     /// <param name="indexNamespace">Namespace to update the vector from. If no namespace is provided, the operation applies to all namespaces.</param>
-    public Task Update(Vector vector, string? indexNamespace = null)
+    public Task Update(Vector vector, string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Transport.Update(vector, indexNamespace);
+        return Transport.Update(vector, indexNamespace, ct);
     }
 
     /// <summary>
@@ -163,9 +165,10 @@ public sealed partial record Index<TTransport> : IDisposable
         float[]? values = null,
         SparseVector? sparseValues = null,
         MetadataMap? metadata = null,
-        string? indexNamespace = null)
+        string? indexNamespace = null,
+        CancellationToken ct = default)
     {
-        return Transport.Update(id, values, sparseValues, metadata, indexNamespace);
+        return Transport.Update(id, values, sparseValues, metadata, indexNamespace, ct);
     }
 
     /// <summary>
@@ -174,9 +177,9 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="ids">IDs of vectors to fetch.</param>
     /// <param name="indexNamespace">Namespace to fetch vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
     /// <returns>A dictionary containing vector IDs and the corresponding <see cref="Vector"/> objects containing the vector information.</returns>
-    public Task<Dictionary<string, Vector>> Fetch(IEnumerable<string> ids, string? indexNamespace = null)
+    public Task<Dictionary<string, Vector>> Fetch(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Transport.Fetch(ids, indexNamespace);
+        return Transport.Fetch(ids, indexNamespace, ct);
     }
 
     /// <summary>
@@ -184,9 +187,9 @@ public sealed partial record Index<TTransport> : IDisposable
     /// </summary>
     /// <param name="ids"></param>
     /// <param name="indexNamespace">Namespace to delete vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
-    public Task Delete(IEnumerable<string> ids, string? indexNamespace = null)
+    public Task Delete(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Transport.Delete(ids, indexNamespace);
+        return Transport.Delete(ids, indexNamespace, ct);
     }
 
     /// <summary>
@@ -194,18 +197,18 @@ public sealed partial record Index<TTransport> : IDisposable
     /// </summary>
     /// <param name="filter">Filter used to select vectors to delete.</param>
     /// <param name="indexNamespace">Namespace to delete vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
-    public Task Delete(MetadataMap filter, string? indexNamespace = null)
+    public Task Delete(MetadataMap filter, string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Transport.Delete(filter, indexNamespace);
+        return Transport.Delete(filter, indexNamespace, ct);
     }
 
     /// <summary>
     /// Deletes all vectors.
     /// </summary>
     /// <param name="indexNamespace">Namespace to delete vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
-    public Task DeleteAll(string? indexNamespace = null)
+    public Task DeleteAll(string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Transport.DeleteAll(indexNamespace);
+        return Transport.DeleteAll(indexNamespace, ct);
     }
 
     /// <inheritdoc />

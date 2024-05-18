@@ -24,7 +24,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 
     public static GrpcTransport Create(string host, string apiKey) => new(host, apiKey);
 
-    public async Task<IndexStats> DescribeStats(MetadataMap? filter = null)
+    public async Task<IndexStats> DescribeStats(MetadataMap? filter = null, CancellationToken ct = default)
     {
         var request = new DescribeIndexStatsRequest();
         if (filter != null)
@@ -32,7 +32,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
             request.Filter = filter.ToProtoStruct();
         }
 
-        using var call = Grpc.DescribeIndexStatsAsync(request, Auth);
+        using var call = Grpc.DescribeIndexStatsAsync(request, Auth, cancellationToken: ct);
         
         return (await call.ConfigureAwait(false)).ToPublicType();
     }
@@ -45,7 +45,8 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         MetadataMap? filter,
         string? indexNamespace,
         bool includeValues,
-        bool includeMetadata)
+        bool includeMetadata,
+        CancellationToken ct = default)
     {
         var request = new QueryRequest()
         {
@@ -71,7 +72,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
                 "At least one of the following parameters must be non-null: id, values, sparseValues");
         }
 
-        using var call = Grpc.QueryAsync(request, Auth);
+        using var call = Grpc.QueryAsync(request, Auth, cancellationToken: ct);
         var response = await call.ConfigureAwait(false);
 
         var matches = response.Matches;
@@ -84,29 +85,31 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         return vectors;
     }
 
-    public async Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null)
+    public async Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null, CancellationToken ct = default)
     {
         var request = new UpsertRequest { Namespace = indexNamespace ?? "" };
         request.Vectors.AddRange(vectors.Select(v => v.ToProtoVector()));
 
-        using var call = Grpc.UpsertAsync(request, Auth);
+        using var call = Grpc.UpsertAsync(request, Auth, cancellationToken: ct);
 
         return (await call.ConfigureAwait(false)).UpsertedCount;
     }
 
-    public Task Update(Vector vector, string? indexNamespace = null) => Update(
+    public Task Update(Vector vector, string? indexNamespace = null, CancellationToken ct = default) => Update(
         vector.Id,
         vector.Values,
         vector.SparseValues,
         vector.Metadata,
-        indexNamespace);
+        indexNamespace,
+        ct);
 
     public async Task Update(
         string id,
         float[]? values = null,
         SparseVector? sparseValues = null,
         MetadataMap? metadata = null,
-        string? indexNamespace = null)
+        string? indexNamespace = null,
+        CancellationToken ct = default)
     {
         if (values is null && sparseValues is null && metadata is null)
         {
@@ -123,12 +126,12 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         };
         request.Values.OverwriteWith(values);
 
-        using var call = Grpc.UpdateAsync(request, Auth);
+        using var call = Grpc.UpdateAsync(request, Auth, cancellationToken: ct);
         _ = await call.ConfigureAwait(false);
     }
 
     public async Task<Dictionary<string, Vector>> Fetch(
-        IEnumerable<string> ids, string? indexNamespace = null)
+        IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
         var request = new FetchRequest
         {
@@ -136,7 +139,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
             Namespace = indexNamespace ?? ""
         };
 
-        using var call = Grpc.FetchAsync(request, Auth);
+        using var call = Grpc.FetchAsync(request, Auth, cancellationToken: ct);
         var response = await call.ConfigureAwait(false);
 
         return response.Vectors.ToDictionary(
@@ -144,28 +147,28 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
             kvp => kvp.Value.ToPublicType());
     }
 
-    public Task Delete(IEnumerable<string> ids, string? indexNamespace = null) =>
+    public Task Delete(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default) =>
         Delete(new()
         {
             Ids = { ids },
             DeleteAll = false,
             Namespace = indexNamespace ?? ""
-        });
+        }, ct);
 
-    public Task Delete(MetadataMap filter, string? indexNamespace = null) =>
+    public Task Delete(MetadataMap filter, string? indexNamespace = null, CancellationToken ct = default) =>
         Delete(new()
         {
             Filter = filter.ToProtoStruct(),
             DeleteAll = false,
             Namespace = indexNamespace ?? ""
-        });
+        }, ct);
 
-    public Task DeleteAll(string? indexNamespace = null) =>
-        Delete(new() { DeleteAll = true, Namespace = indexNamespace ?? "" });
+    public Task DeleteAll(string? indexNamespace = null, CancellationToken ct = default) =>
+        Delete(new() { DeleteAll = true, Namespace = indexNamespace ?? "" }, ct);
 
-    private async Task Delete(DeleteRequest request)
+    private async Task Delete(DeleteRequest request, CancellationToken ct)
     {
-        using var call = Grpc.DeleteAsync(request, Auth);
+        using var call = Grpc.DeleteAsync(request, Auth, cancellationToken: ct);
         _ = await call.ConfigureAwait(false);
     }
 

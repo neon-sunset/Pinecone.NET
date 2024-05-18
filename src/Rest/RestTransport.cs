@@ -21,16 +21,16 @@ public readonly record struct RestTransport : ITransport<RestTransport>
 
     public static RestTransport Create(string host, string apiKey) => new(host, apiKey);
 
-    public async Task<IndexStats> DescribeStats(MetadataMap? filter = null)
+    public async Task<IndexStats> DescribeStats(MetadataMap? filter = null, CancellationToken ct = default)
     {
         var request = new DescribeStatsRequest { Filter = filter };
         var response = await Http
-            .PostAsJsonAsync("/describe_index_stats", request, SerializerContext.Default.DescribeStatsRequest)
+            .PostAsJsonAsync("/describe_index_stats", request, SerializerContext.Default.DescribeStatsRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
         return await response.Content
-            .ReadFromJsonAsync(SerializerContext.Default.IndexStats)
+            .ReadFromJsonAsync(SerializerContext.Default.IndexStats, ct)
             .ConfigureAwait(false) ?? ThrowHelpers.JsonException<IndexStats>();
     }
 
@@ -42,7 +42,8 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         MetadataMap? filter,
         string? indexNamespace,
         bool includeValues,
-        bool includeMetadata)
+        bool includeMetadata,
+        CancellationToken ct = default)
     {
         if (id is null && values is null && sparseValues is null)
         {
@@ -63,17 +64,17 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         };
 
         var response = await Http
-            .PostAsJsonAsync("/query", request, SerializerContext.Default.QueryRequest)
+            .PostAsJsonAsync("/query", request, SerializerContext.Default.QueryRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
         return (await response.Content
-            .ReadFromJsonAsync(SerializerContext.Default.QueryResponse)
+            .ReadFromJsonAsync(SerializerContext.Default.QueryResponse, ct)
             .ConfigureAwait(false))
             .Matches ?? ThrowHelpers.JsonException<ScoredVector[]>();
     }
 
-    public async Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null)
+    public async Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null, CancellationToken ct = default)
     {
         var request = new UpsertRequest
         {
@@ -82,24 +83,24 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         };
 
         var response = await Http
-            .PostAsJsonAsync("/vectors/upsert", request, SerializerContext.Default.UpsertRequest)
+            .PostAsJsonAsync("/vectors/upsert", request, SerializerContext.Default.UpsertRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
         return (await response.Content
-            .ReadFromJsonAsync(SerializerContext.Default.UpsertResponse)
+            .ReadFromJsonAsync(SerializerContext.Default.UpsertResponse, ct)
             .ConfigureAwait(false)).UpsertedCount;
     }
 
-    public async Task Update(Vector vector, string? indexNamespace = null)
+    public async Task Update(Vector vector, string? indexNamespace = null, CancellationToken ct = default)
     {
         var request = UpdateRequest.From(vector, indexNamespace);
         Debug.Assert(request.Metadata is null);
 
         var response = await Http
-            .PostAsJsonAsync("/vectors/update", request, SerializerContext.Default.UpdateRequest)
+            .PostAsJsonAsync("/vectors/update", request, SerializerContext.Default.UpdateRequest, ct)
             .ConfigureAwait(false);
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
 
     public async Task Update(
@@ -107,7 +108,8 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         float[]? values = null,
         SparseVector? sparseValues = null,
         MetadataMap? metadata = null,
-        string? indexNamespace = null)
+        string? indexNamespace = null,
+        CancellationToken ct = default)
     {
         if (values is null && sparseValues is null && metadata is null)
         {
@@ -125,13 +127,13 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         };
 
         var response = await Http
-            .PostAsJsonAsync("/vectors/update", request, SerializerContext.Default.UpdateRequest)
+            .PostAsJsonAsync("/vectors/update", request, SerializerContext.Default.UpdateRequest, ct)
             .ConfigureAwait(false);
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
 
     public async Task<Dictionary<string, Vector>> Fetch(
-        IEnumerable<string> ids, string? indexNamespace = null)
+        IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
         using var enumerator = ids.GetEnumerator();
         if (!enumerator.MoveNext())
@@ -149,35 +151,35 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         }
 
         return (await Http
-            .GetFromJsonAsync(addressBuilder.ToString(), SerializerContext.Default.FetchResponse)
+            .GetFromJsonAsync(addressBuilder.ToString(), SerializerContext.Default.FetchResponse, ct)
             .ConfigureAwait(false)).Vectors;
     }
 
-    public Task Delete(IEnumerable<string> ids, string? indexNamespace = null) =>
+    public Task Delete(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default) =>
         Delete(new()
         {
             Ids = ids as string[] ?? ids.ToArray(),
             DeleteAll = false,
             Namespace = indexNamespace ?? ""
-        });
+        }, ct);
 
-    public Task Delete(MetadataMap filter, string? indexNamespace = null) =>
+    public Task Delete(MetadataMap filter, string? indexNamespace = null, CancellationToken ct = default) =>
         Delete(new()
         {
             Filter = filter,
             DeleteAll = false,
             Namespace = indexNamespace ?? ""
-        });
+        }, ct);
 
-    public Task DeleteAll(string? indexNamespace = null) =>
-        Delete(new() { DeleteAll = true, Namespace = indexNamespace ?? "" });
+    public Task DeleteAll(string? indexNamespace = null, CancellationToken ct = default) =>
+        Delete(new() { DeleteAll = true, Namespace = indexNamespace ?? "" }, ct);
 
-    private async Task Delete(DeleteRequest request)
+    private async Task Delete(DeleteRequest request, CancellationToken ct)
     {
         var response = await Http
-            .PostAsJsonAsync("/vectors/delete", request, SerializerContext.Default.DeleteRequest)
+            .PostAsJsonAsync("/vectors/delete", request, SerializerContext.Default.DeleteRequest, ct)
             .ConfigureAwait(false);
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
 
     public void Dispose() => Http.Dispose();

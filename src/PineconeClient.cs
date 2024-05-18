@@ -54,12 +54,12 @@ public sealed class PineconeClient : IDisposable
     /// <summary>
     /// Returns a list of indexes in the project.
     /// </summary>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     /// <returns>List of index descriptions for all indexes in the project.</returns>
-    public async Task<IndexDetails[]> ListIndexes(CancellationToken cancellationToken = default)
+    public async Task<IndexDetails[]> ListIndexes(CancellationToken ct = default)
     {
-        var listIndexesResult = (ListIndexesResult?)await Http
-            .GetFromJsonAsync("/indexes", typeof(ListIndexesResult), SerializerContext.Default, cancellationToken)
+        var listIndexesResult = await Http
+            .GetFromJsonAsync("/indexes", SerializerContext.Default.ListIndexesResult, ct)
             .ConfigureAwait(false);
 
         return listIndexesResult?.Indexes ?? [];
@@ -76,7 +76,7 @@ public sealed class PineconeClient : IDisposable
     /// <param name="pods">Number of pods to use. This should be equal to number of shards multiplied by the number of replicas.</param>
     /// <param name="shards">Number of shards to split the data across multiple pods.</param>
     /// <param name="replicas">Number of replicas. Replicas duplicate the index for greater availability and throughput.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     /// <returns></returns>
     public Task CreatePodBasedIndex(
         string name, 
@@ -87,14 +87,14 @@ public sealed class PineconeClient : IDisposable
         uint? pods = 1, 
         uint? shards = 1, 
         uint? replicas = 1, 
-        CancellationToken cancellationToken = default)
+        CancellationToken ct = default)
         => CreateIndexAsync(new CreateIndexRequest
         {
             Name = name,
             Dimension = dimension,
             Metric = metric,
             Spec = new IndexSpec { Pod = new PodSpec { Environment = environment, PodType = podType, Pods = pods, Replicas = replicas, Shards = shards } }
-        }, cancellationToken);
+        }, ct);
 
     /// <summary>
     /// Creates a serverless index. Serverless indexes scale dynamically based on usage.
@@ -104,24 +104,24 @@ public sealed class PineconeClient : IDisposable
     /// <param name="metric">The distance metric used for similarity search.</param>
     /// <param name="cloud">The public cloud where the index will be hosted.</param>
     /// <param name="region">The region where the index will be created.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     /// <returns></returns>
-    public Task CreateServerlessIndex(string name, uint dimension, Metric metric, string cloud, string region, CancellationToken cancellationToken = default)
+    public Task CreateServerlessIndex(string name, uint dimension, Metric metric, string cloud, string region, CancellationToken ct = default)
         => CreateIndexAsync(new CreateIndexRequest
         {
             Name = name,
             Dimension = dimension,
             Metric = metric,
             Spec = new IndexSpec { Serverless = new ServerlessSpec { Cloud = cloud, Region = region } }
-        }, cancellationToken);
+        }, ct);
 
-    private async Task CreateIndexAsync(CreateIndexRequest request, CancellationToken cancellationToken = default)
+    private async Task CreateIndexAsync(CreateIndexRequest request, CancellationToken ct = default)
     {
         var response = await Http
-            .PostAsJsonAsync("/indexes", request, SerializerContext.Default.CreateIndexRequest, cancellationToken)
+            .PostAsJsonAsync("/indexes", request, SerializerContext.Default.CreateIndexRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -129,9 +129,9 @@ public sealed class PineconeClient : IDisposable
     /// It is used to upsert, query, fetch, update, delete and list vectors, as well as retrieving index statistics.
     /// </summary>
     /// <param name="name">Name of the index to describe.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     /// <returns><see cref="Index{GrpcTransport}"/> describing the index.</returns>
-    public Task<Index<GrpcTransport>> GetIndex(string name, CancellationToken cancellationToken = default) => GetIndex<GrpcTransport>(name, cancellationToken);
+    public Task<Index<GrpcTransport>> GetIndex(string name, CancellationToken ct = default) => GetIndex<GrpcTransport>(name, ct);
 
     /// <summary>
     /// Creates an <see cref="Index{TTransport}"/> object describing the index. It is a main entry point for interacting with vectors. 
@@ -139,21 +139,18 @@ public sealed class PineconeClient : IDisposable
     /// </summary>
     /// <typeparam name="TTransport">The type of transport layer used, either <see cref="GrpcTransport"/> or <see cref="RestTransport"/>.</typeparam>
     /// <param name="name">Name of the index to describe.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     /// <returns><see cref="Index{TTransport}"/> describing the index.</returns>
 #if NET7_0_OR_GREATER
-    public async Task<Index<TTransport>> GetIndex<TTransport>(string name, CancellationToken cancellationToken = default)
+    public async Task<Index<TTransport>> GetIndex<TTransport>(string name, CancellationToken ct = default)
 #else
     public async Task<Index<TTransport>> GetIndex<
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransport>(string name, CancellationToken cancellationToken = default)
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransport>(string name, CancellationToken ct = default)
 #endif
         where TTransport : ITransport<TTransport>
     {
         var response = await Http
-            .GetFromJsonAsync(
-                $"/indexes/{UrlEncoder.Default.Encode(name)}",
-                SerializerContext.Default.IndexDetails,
-                cancellationToken)
+            .GetFromJsonAsync($"/indexes/{UrlEncoder.Default.Encode(name)}", SerializerContext.Default.IndexDetails, ct)
             .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed.");
 
         // TODO: Host is optional according to the API spec: https://docs.pinecone.io/reference/api/control-plane/describe_index
@@ -185,8 +182,8 @@ public sealed class PineconeClient : IDisposable
     /// <param name="name">Name of the pod-based index to configure.</param>
     /// <param name="replicas">The new number or replicas.</param>
     /// <param name="podType">The new pod type.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
-    public async Task ConfigureIndex(string name, int? replicas = null, string? podType = null, CancellationToken cancellationToken = default)
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    public async Task ConfigureIndex(string name, int? replicas = null, string? podType = null, CancellationToken ct = default)
     {
         if (replicas is null && podType is null or [])
         {
@@ -200,33 +197,31 @@ public sealed class PineconeClient : IDisposable
                 $"/indexes/{UrlEncoder.Default.Encode(name)}",
                 request,
                 SerializerContext.Default.ConfigureIndexRequest,
-                cancellationToken)
+                ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Deletes an existing index.
     /// </summary>
     /// <param name="name">Name of index to delete.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
-    public async Task DeleteIndex(string name, CancellationToken cancellationToken = default) =>
-        await (await Http.DeleteAsync($"/indexes/{UrlEncoder.Default.Encode(name)}", cancellationToken).ConfigureAwait(false))
-            .CheckStatusCode()
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    public async Task DeleteIndex(string name, CancellationToken ct = default) =>
+        await (await Http.DeleteAsync($"/indexes/{UrlEncoder.Default.Encode(name)}", ct).ConfigureAwait(false))
+            .CheckStatusCode(ct)
             .ConfigureAwait(false);
 
     /// <summary>
     /// Returns a list of collections in the project.
     /// </summary>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     /// <returns>List of collection descriptions for all collections in the project.</returns>
-    public async Task<CollectionDetails[]> ListCollections(CancellationToken cancellationToken = default)
+    public async Task<CollectionDetails[]> ListCollections(CancellationToken ct = default)
     {
-        var listCollectionsResult = (ListCollectionsResult?)await Http
-            .GetFromJsonAsync("/collections", typeof(ListCollectionsResult), 
-            SerializerContext.Default,
-            cancellationToken)
+        var listCollectionsResult = await Http
+            .GetFromJsonAsync("/collections", SerializerContext.Default.ListCollectionsResult, ct)
             .ConfigureAwait(false);
 
         return listCollectionsResult?.Collections ?? [];
@@ -237,31 +232,30 @@ public sealed class PineconeClient : IDisposable
     /// </summary>
     /// <param name="name">Name of the collection to create.</param>
     /// <param name="source">The name of the index to be used as the source for the collection.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
-    public async Task CreateCollection(string name, string source, CancellationToken cancellationToken = default)
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    public async Task CreateCollection(string name, string source, CancellationToken ct = default)
     {
         var request = new CreateCollectionRequest { Name = name, Source = source };
         var response = await Http
-            .PostAsJsonAsync("/collections", request, SerializerContext.Default.CreateCollectionRequest,
-            cancellationToken)
+            .PostAsJsonAsync("/collections", request, SerializerContext.Default.CreateCollectionRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Gets a description of a collection.
     /// </summary>
     /// <param name="name">Name of the collection to describe.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     /// <returns>A <see cref="CollectionDetails"/> describing the collection.</returns>
-    public async Task<CollectionDetails> DescribeCollection(string name, CancellationToken cancellationToken = default)
+    public async Task<CollectionDetails> DescribeCollection(string name, CancellationToken ct = default)
     {
         return await Http
             .GetFromJsonAsync(
                 $"/collections/{UrlEncoder.Default.Encode(name)}",
                 SerializerContext.Default.CollectionDetails, 
-                cancellationToken)
+                ct)
             .ConfigureAwait(false) ?? ThrowHelpers.JsonException<CollectionDetails>();
     }
 
@@ -269,10 +263,10 @@ public sealed class PineconeClient : IDisposable
     /// Deletes an existing collection.
     /// </summary>
     /// <param name="name">Name of the collection to delete.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
-    public async Task DeleteCollection(string name, CancellationToken cancellationToken = default) =>
-        await (await Http.DeleteAsync($"/collections/{UrlEncoder.Default.Encode(name)}", cancellationToken))
-            .CheckStatusCode()
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    public async Task DeleteCollection(string name, CancellationToken ct = default) =>
+        await (await Http.DeleteAsync($"/collections/{UrlEncoder.Default.Encode(name)}", ct))
+            .CheckStatusCode(ct)
             .ConfigureAwait(false);
 
     /// <inheritdoc />
