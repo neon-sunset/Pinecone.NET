@@ -21,11 +21,8 @@ Working with indexes
 ```csharp
 using Pinecone;
 
-// Initialize the client with your API key and environment
-var apiKey = "your-api-key";
-var environment = "your-environment"; // for example us-east4-gcp
-
-using var pinecone = new PineconeClient(apiKey, environment);
+// Initialize the client with your API key
+using var pinecone = new PineconeClient("your-api-key");
 
 // List all indexes
 var indexes = await pinecone.ListIndexes();
@@ -34,7 +31,7 @@ var indexes = await pinecone.ListIndexes();
 var indexName = "myIndex";
 if (!indexes.Contains(indexName))
 {
-    await pinecone.CreateIndex(indexName, 1536, Metric.Cosine);
+    await pinecone.CreateServerlessIndex(indexName, 1536, Metric.Cosine, "aws", "us-east-1");
 }
 
 // Get the Pinecone index by name (uses gRPC by default).
