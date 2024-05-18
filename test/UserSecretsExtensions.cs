@@ -12,7 +12,7 @@ public static class UserSecretsExtensions
         => JsonSerializer.Deserialize<Dictionary<string, string>>(
             File.ReadAllText(PathHelper.GetSecretsPathFromSecretsId(
                 typeof(UserSecretsExtensions).Assembly.GetCustomAttribute<UserSecretsIdAttribute>()!
-                    .UserSecretsId)))![PineconeApiKeyUserSecretEntry];
+                    .UserSecretsId)))![PineconeApiKeyUserSecretEntry].Trim();
 
     public static bool ContainsPineconeApiKey()
     {
