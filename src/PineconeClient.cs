@@ -7,19 +7,27 @@ using Pinecone.Rest;
 
 namespace Pinecone;
 
+/// <summary>
+/// Main entry point for interacting with Pinecone. It is used to create, delete and modify indexes.
+/// </summary>
 public sealed class PineconeClient : IDisposable
 {
     private readonly HttpClient Http;
 
-    public PineconeClient(string apiKey, string environment)
+    /// <summary>
+    /// Creates a new instance of the <see cref="PineconeClient" /> class.
+    /// </summary>
+    /// <param name="apiKey">API key used to connect to Pinecone.</param>
+    public PineconeClient(string apiKey)
+        : this(apiKey, new Uri($"https://api.pinecone.io"))
     {
-        Guard.IsNotNullOrWhiteSpace(apiKey);
-        Guard.IsNotNullOrWhiteSpace(environment);
-
-        Http = new() { BaseAddress = new Uri($"https://controller.{environment}.pinecone.io") };
-        Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
     }
 
+    /// <summary>
+    /// Creates a new instance of the <see cref="PineconeClient" /> class.
+    /// </summary>
+    /// <param name="apiKey">API key used to connect to Pinecone.</param>
+    /// <param name="baseUrl">Url used to connect to Pinecone.</param>
     public PineconeClient(string apiKey, Uri baseUrl)
     {
         Guard.IsNotNullOrWhiteSpace(apiKey);
@@ -29,6 +37,11 @@ public sealed class PineconeClient : IDisposable
         Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
     }
 
+    /// <summary>
+    /// Creates a new instance of the <see cref="PineconeClient" /> class.
+    /// </summary>
+    /// <param name="apiKey">API key used to connect to Pinecone.</param>
+    /// <param name="client">HTTP client used to connect to Pinecone.</param>
     public PineconeClient(string apiKey, HttpClient client)
     {
         Guard.IsNotNullOrWhiteSpace(apiKey);
@@ -38,58 +51,139 @@ public sealed class PineconeClient : IDisposable
         Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
     }
 
-    public async Task<string[]> ListIndexes()
+    /// <summary>
+    /// Returns a list of indexes in the project.
+    /// </summary>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <returns>List of index descriptions for all indexes in the project.</returns>
+    public async Task<IndexDetails[]> ListIndexes(CancellationToken ct = default)
     {
-        var indexes = await Http
-            .GetFromJsonAsync("/databases", SerializerContext.Default.StringArray)
+        var listIndexesResult = await Http
+            .GetFromJsonAsync("/indexes", SerializerContext.Default.ListIndexesResult, ct)
             .ConfigureAwait(false);
 
-        return indexes ?? [];
+        return listIndexesResult?.Indexes ?? [];
     }
 
-    public Task CreateIndex(string name, uint dimension, Metric metric) =>
-        CreateIndex(new IndexDetails { Name = name, Dimension = dimension, Metric = metric });
+    /// <summary>
+    /// Creates a pod-based index. Pod-based indexes use pre-configured units of hardware.
+    /// </summary>
+    /// <param name="name">Name of the index.</param>
+    /// <param name="dimension">The dimension of vectors stored in the index.</param>
+    /// <param name="metric">The distance metric used for similarity search.</param>
+    /// <param name="environment">The environment where the index is hosted. For free starter plan set the environment as "gcp-starter".</param>
+    /// <param name="podType">The type of pod to use.  A string containing one of "s1", "p1", or "p2" appended with "." and one of "x1", "x2", "x4", or "x8".</param>
+    /// <param name="pods">Number of pods to use. This should be equal to number of shards multiplied by the number of replicas.</param>
+    /// <param name="shards">Number of shards to split the data across multiple pods.</param>
+    /// <param name="replicas">Number of replicas. Replicas duplicate the index for greater availability and throughput.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <returns></returns>
+    public Task CreatePodBasedIndex(
+        string name, 
+        uint dimension, 
+        Metric metric, 
+        string environment, 
+        string podType = "p1.x1", 
+        uint? pods = 1, 
+        uint? shards = 1, 
+        uint? replicas = 1, 
+        CancellationToken ct = default)
+        => CreateIndexAsync(new CreateIndexRequest
+        {
+            Name = name,
+            Dimension = dimension,
+            Metric = metric,
+            Spec = new IndexSpec { Pod = new PodSpec { Environment = environment, PodType = podType, Pods = pods, Replicas = replicas, Shards = shards } }
+        }, ct);
 
-    public async Task CreateIndex(IndexDetails indexDetails, string? sourceCollection = null)
+    /// <summary>
+    /// Creates a serverless index. Serverless indexes scale dynamically based on usage.
+    /// </summary>
+    /// <param name="name">Name of the index.</param>
+    /// <param name="dimension">The dimension of vectors stored in the index.</param>
+    /// <param name="metric">The distance metric used for similarity search.</param>
+    /// <param name="cloud">The public cloud where the index will be hosted.</param>
+    /// <param name="region">The region where the index will be created.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <returns></returns>
+    public Task CreateServerlessIndex(string name, uint dimension, Metric metric, string cloud, string region, CancellationToken ct = default)
+        => CreateIndexAsync(new CreateIndexRequest
+        {
+            Name = name,
+            Dimension = dimension,
+            Metric = metric,
+            Spec = new IndexSpec { Serverless = new ServerlessSpec { Cloud = cloud, Region = region } }
+        }, ct);
+
+    private async Task CreateIndexAsync(CreateIndexRequest request, CancellationToken ct = default)
     {
-        var request = CreateIndexRequest.From(indexDetails, sourceCollection);
         var response = await Http
-            .PostAsJsonAsync("/databases", request, SerializerContext.Default.CreateIndexRequest)
+            .PostAsJsonAsync("/indexes", request, SerializerContext.Default.CreateIndexRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
 
-    public Task<Index<GrpcTransport>> GetIndex(string name) => GetIndex<GrpcTransport>(name);
+    /// <summary>
+    /// Creates an <see cref="Index{GrpcTransport}"/> object describing the index. It is a main entry point for interacting with vectors. 
+    /// It is used to upsert, query, fetch, update, delete and list vectors, as well as retrieving index statistics.
+    /// </summary>
+    /// <param name="name">Name of the index to describe.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <returns><see cref="Index{GrpcTransport}"/> describing the index.</returns>
+    public Task<Index<GrpcTransport>> GetIndex(string name, CancellationToken ct = default) => GetIndex<GrpcTransport>(name, ct);
 
+    /// <summary>
+    /// Creates an <see cref="Index{TTransport}"/> object describing the index. It is a main entry point for interacting with vectors. 
+    /// It is used to upsert, query, fetch, update, delete and list vectors, as well as retrieving index statistics.
+    /// </summary>
+    /// <typeparam name="TTransport">The type of transport layer used, either <see cref="GrpcTransport"/> or <see cref="RestTransport"/>.</typeparam>
+    /// <param name="name">Name of the index to describe.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <returns><see cref="Index{TTransport}"/> describing the index.</returns>
 #if NET7_0_OR_GREATER
-    public async Task<Index<TTransport>> GetIndex<TTransport>(string name)
+    public async Task<Index<TTransport>> GetIndex<TTransport>(string name, CancellationToken ct = default)
 #else
     public async Task<Index<TTransport>> GetIndex<
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransport>(string name)
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransport>(string name, CancellationToken ct = default)
 #endif
         where TTransport : ITransport<TTransport>
     {
         var response = await Http
-            .GetFromJsonAsync(
-                $"/databases/{UrlEncoder.Default.Encode(name)}",
-                typeof(Index<TTransport>),
-                SerializerContext.Default)
+            .GetFromJsonAsync($"/indexes/{UrlEncoder.Default.Encode(name)}", SerializerContext.Default.IndexDetails, ct)
             .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed.");
 
-        var index = (Index<TTransport>)response;
-        var host = index.Status.Host;
+        // TODO: Host is optional according to the API spec: https://docs.pinecone.io/reference/api/control-plane/describe_index
+        // but Transport requires it
+        var host = response.Host!;
         var apiKey = Http.DefaultRequestHeaders.GetValues(Constants.RestApiKey).First();
 
+        var index = new Index<TTransport>
+        {
+            Name = response.Name,
+            Dimension = response.Dimension,
+            Metric = response.Metric,
+            Host = response.Host,
+            Spec = response.Spec,
+            Status = response.Status,
 #if NET7_0_OR_GREATER
-        index.Transport = TTransport.Create(host, apiKey);
+            Transport = TTransport.Create(host, apiKey)
 #else
-        index.Transport = ITransport<TTransport>.Create(host, apiKey);
+            Transport = ITransport<TTransport>.Create(host, apiKey)
 #endif
+        };
+
         return index;
     }
 
-    public async Task ConfigureIndex(string name, int? replicas = null, string? podType = null)
+    /// <summary>
+    /// Specifies the pod type and number of replicas for an index. It applies to pod-based indexes only. Serverless indexes scale automatically based on usage.
+    /// </summary>
+    /// <param name="name">Name of the pod-based index to configure.</param>
+    /// <param name="replicas">The new number or replicas.</param>
+    /// <param name="podType">The new pod type.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    public async Task ConfigureIndex(string name, int? replicas = null, string? podType = null, CancellationToken ct = default)
     {
         if (replicas is null && podType is null or [])
         {
@@ -100,51 +194,81 @@ public sealed class PineconeClient : IDisposable
         var request = new ConfigureIndexRequest { Replicas = replicas, PodType = podType };
         var response = await Http
             .PatchAsJsonAsync(
-                $"/databases/{UrlEncoder.Default.Encode(name)}",
+                $"/indexes/{UrlEncoder.Default.Encode(name)}",
                 request,
-                SerializerContext.Default.ConfigureIndexRequest)
+                SerializerContext.Default.ConfigureIndexRequest,
+                ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
 
-    public async Task DeleteIndex(string name) =>
-        await (await Http.DeleteAsync($"/databases/{UrlEncoder.Default.Encode(name)}").ConfigureAwait(false))
-            .CheckStatusCode()
+    /// <summary>
+    /// Deletes an existing index.
+    /// </summary>
+    /// <param name="name">Name of index to delete.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    public async Task DeleteIndex(string name, CancellationToken ct = default) =>
+        await (await Http.DeleteAsync($"/indexes/{UrlEncoder.Default.Encode(name)}", ct).ConfigureAwait(false))
+            .CheckStatusCode(ct)
             .ConfigureAwait(false);
 
-    public async Task<string[]> ListCollections()
+    /// <summary>
+    /// Returns a list of collections in the project.
+    /// </summary>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <returns>List of collection descriptions for all collections in the project.</returns>
+    public async Task<CollectionDetails[]> ListCollections(CancellationToken ct = default)
     {
-        var collections = await Http
-            .GetFromJsonAsync("/collections", SerializerContext.Default.StringArray)
+        var listCollectionsResult = await Http
+            .GetFromJsonAsync("/collections", SerializerContext.Default.ListCollectionsResult, ct)
             .ConfigureAwait(false);
 
-        return collections ?? [];
+        return listCollectionsResult?.Collections ?? [];
     }
 
-    public async Task CreateCollection(string name, string source)
+    /// <summary>
+    /// Creates a new collection based on the source index.
+    /// </summary>
+    /// <param name="name">Name of the collection to create.</param>
+    /// <param name="source">The name of the index to be used as the source for the collection.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    public async Task CreateCollection(string name, string source, CancellationToken ct = default)
     {
         var request = new CreateCollectionRequest { Name = name, Source = source };
         var response = await Http
-            .PostAsJsonAsync("/collections", request, SerializerContext.Default.CreateCollectionRequest)
+            .PostAsJsonAsync("/collections", request, SerializerContext.Default.CreateCollectionRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode().ConfigureAwait(false);
+        await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
 
-    public async Task<CollectionDetails> DescribeCollection(string name)
+    /// <summary>
+    /// Gets a description of a collection.
+    /// </summary>
+    /// <param name="name">Name of the collection to describe.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="CollectionDetails"/> describing the collection.</returns>
+    public async Task<CollectionDetails> DescribeCollection(string name, CancellationToken ct = default)
     {
         return await Http
             .GetFromJsonAsync(
                 $"/collections/{UrlEncoder.Default.Encode(name)}",
-                SerializerContext.Default.CollectionDetails)
+                SerializerContext.Default.CollectionDetails, 
+                ct)
             .ConfigureAwait(false) ?? ThrowHelpers.JsonException<CollectionDetails>();
     }
 
-    public async Task DeleteCollection(string name) =>
-        await (await Http.DeleteAsync($"/collections/{UrlEncoder.Default.Encode(name)}"))
-            .CheckStatusCode()
+    /// <summary>
+    /// Deletes an existing collection.
+    /// </summary>
+    /// <param name="name">Name of the collection to delete.</param>
+    /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    public async Task DeleteCollection(string name, CancellationToken ct = default) =>
+        await (await Http.DeleteAsync($"/collections/{UrlEncoder.Default.Encode(name)}", ct))
+            .CheckStatusCode(ct)
             .ConfigureAwait(false);
 
+    /// <inheritdoc />
     public void Dispose() => Http.Dispose();
 }

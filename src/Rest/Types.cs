@@ -2,24 +2,17 @@ using System.Text.Json.Serialization;
 
 namespace Pinecone.Rest;
 
-internal sealed record CreateIndexRequest : IndexDetails
+internal sealed record ListIndexesResult
 {
-    [JsonPropertyName("source_collection")]
-    public string? SourceCollection { get; init; }
+    public required IndexDetails[] Indexes { get; init; }
+}
 
-    public static CreateIndexRequest From(
-        IndexDetails index,
-        string? sourceCollection) => new()
-    {
-        Dimension = index.Dimension,
-        Metric = index.Metric,
-        Name = index.Name,
-        Pods = index.Pods,
-        PodType = index.PodType,
-        Replicas = index.Replicas,
-        MetadataConfig = index.MetadataConfig,
-        SourceCollection = sourceCollection
-    };
+internal sealed record CreateIndexRequest
+{
+    public required string Name { get; init; }
+    public required uint Dimension { get; init; }
+    public required Metric Metric { get; init; }
+    public required IndexSpec Spec { get; init; }
 }
 
 internal readonly record struct ConfigureIndexRequest

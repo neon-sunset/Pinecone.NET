@@ -1,16 +1,17 @@
 using Pinecone;
 
-using var pinecone = new PineconeClient("[api-key]", "[pinecone-env]");
+using var pinecone = new PineconeClient("[api-key]");
 
 // Check if the index exists and create it if it doesn't
 // Depending on the storage type and infrastructure state this may take a while
-// Free tier is limited to 1 index only
+// Free tier is limited to 1 pod index and 5 serverless indexes only
 var indexName = "test-index";
 var indexList = await pinecone.ListIndexes();
 
-if (!indexList.Contains(indexName))
+if (!indexList.Select(x => x.Name).Contains(indexName))
 {
-    await pinecone.CreateIndex(indexName, 1536, Metric.Cosine);
+    // free serverless indexes are currently only available on AWS us-east-1
+    await pinecone.CreateServerlessIndex(indexName, 1536, Metric.Cosine, "aws", "us-east-1");
 }
 
 // Get the Pinecone index by name (uses gRPC by default).

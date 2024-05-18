@@ -1,20 +1,22 @@
-﻿open Pinecone
+﻿#nowarn "3391"
+open Pinecone
 open System.Collections.Generic
 
 let createMetadata x =
     MetadataMap(x |> Seq.map (fun (k, m) -> KeyValuePair(k,m) ))
 
 let main = task {
-    use pinecone = new PineconeClient("[api-key]", "[pinecone-env]")
+    use pinecone = new PineconeClient("[api-key]")
 
     // Check if the index exists and create it if it doesn't
     // Depending on the storage type and infrastructure state this may take a while
-    // Free tier is limited to 1 index only
+    // Free tier is limited to 1 pod index and 5 serverless indexes only
     let indexName = "test-index"
     let! indexList = pinecone.ListIndexes()
-    if indexList |> Array.contains indexName |> not then
-        do! pinecone.CreateIndex(indexName, 1536u, Metric.Cosine)
-    
+    if not (indexList |> Array.exists (fun index -> index.Name = indexName)) then
+        // free serverless indexes are currently only available on AWS us-east-1
+        do! pinecone.CreateServerlessIndex(indexName, 1536u, Metric.Cosine, "aws", "us-east-1")
+
     // Get the Pinecone index by name (uses gRPC by default).
     // The index client is thread-safe, consider caching and/or
     // injecting it as a singleton into your DI container.
