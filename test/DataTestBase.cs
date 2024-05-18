@@ -163,11 +163,11 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
 
         Assert.Equal("basic-vector-1", orderedResults[0].Key);
         Assert.Equal("basic-vector-1", orderedResults[0].Value.Id);
-        Assert.Equal([0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f], orderedResults[0].Value.Values);
+        Assert.Equal([0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f], orderedResults[0].Value.Values.AsSpan());
 
         Assert.Equal("basic-vector-3", orderedResults[1].Key);
         Assert.Equal("basic-vector-3", orderedResults[1].Value.Id);
-        Assert.Equal([1.5f, 3.0f, 4.5f, 6.0f, 7.5f, 9.0f, 10.5f, 12.0f], orderedResults[1].Value.Values);
+        Assert.Equal([1.5f, 3.0f, 4.5f, 6.0f, 7.5f, 9.0f, 10.5f, 12.0f], orderedResults[1].Value.Values.AsSpan());
     }
 
     [PineconeFact]
@@ -180,10 +180,10 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
         var resultVector = results["sparse-1"];
 
         Assert.Equal("sparse-1", resultVector.Id);
-        Assert.Equal([5, 10, 15, 20, 25, 30, 35, 40], resultVector.Values);
+        Assert.Equal([5, 10, 15, 20, 25, 30, 35, 40], resultVector.Values.AsSpan());
         Assert.NotNull(resultVector.SparseValues);
         Assert.Equal([1, 4], resultVector.SparseValues.Value.Indices);
-        Assert.Equal([0.2f, 0.5f], resultVector.SparseValues.Value.Values);
+        Assert.Equal([0.2f, 0.5f], resultVector.SparseValues.Value.Values.AsSpan());
     }
 
     [PineconeFact]
