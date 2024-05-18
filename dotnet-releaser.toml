@@ -4,3 +4,5 @@ project = "Pinecone.sln"
 [github]
 user = "neon-sunset"
 repo = "Pinecone.NET"
+[test]
+enable = false

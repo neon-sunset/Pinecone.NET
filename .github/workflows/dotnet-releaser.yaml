@@ -22,10 +22,13 @@ jobs:
           6.0.x
           7.0.x
           8.0.x
+    - name: Run Tests
+      run: |
+        cd test
+        dotnet user-secrets set "PineconeApiKey" "${{secrets.PINECONE_API_KEY}}"
+        dotnet test -c Release -f net8.0
     - name: Install dotnet-releaser
       run: dotnet tool install -g dotnet-releaser
     - name: Run dotnet-releaser
       shell: bash
-      run: |
-        dotnet user-secrets set "PineconeApiKey" "${{secrets.PINECONE_API_KEY}}" --project test
-        dotnet-releaser run --nuget-token "${{secrets.NUGET_TOKEN}}" --github-token "${{secrets.GITHUB_TOKEN}}" dotnet-releaser.toml
+      run: dotnet-releaser run --nuget-token "${{secrets.NUGET_TOKEN}}" --github-token "${{secrets.GITHUB_TOKEN}}" dotnet-releaser.toml
