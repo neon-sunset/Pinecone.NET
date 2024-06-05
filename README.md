@@ -5,9 +5,10 @@ In the absence of an official SDK, it provides first-class support for Pinecone 
 
 ## Features
 
-- Standard Index operations
+- Standard operations on pod-based and serverless indexes
 - gRPC and REST transports for vector operations
 - Sparse-dense vectors
+- Parallel vector upsert and fetch
 - Efficient vector serialization
 - Metadata support
 - NativeAOT compatibility (e.g. for AWS Lambda)
