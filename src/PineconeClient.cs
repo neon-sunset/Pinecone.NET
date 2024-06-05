@@ -59,7 +59,7 @@ public sealed class PineconeClient : IDisposable
     public async Task<IndexDetails[]> ListIndexes(CancellationToken ct = default)
     {
         var listIndexesResult = await Http
-            .GetFromJsonAsync("/indexes", SerializerContext.Default.ListIndexesResult, ct)
+            .GetFromJsonAsync("/indexes", ClientContext.Default.ListIndexesResult, ct)
             .ConfigureAwait(false);
 
         return listIndexesResult?.Indexes ?? [];
@@ -118,7 +118,7 @@ public sealed class PineconeClient : IDisposable
     private async Task CreateIndexAsync(CreateIndexRequest request, CancellationToken ct = default)
     {
         var response = await Http
-            .PostAsJsonAsync("/indexes", request, SerializerContext.Default.CreateIndexRequest, ct)
+            .PostAsJsonAsync("/indexes", request, ClientContext.Default.CreateIndexRequest, ct)
             .ConfigureAwait(false);
 
         await response.CheckStatusCode(ct).ConfigureAwait(false);
@@ -150,7 +150,7 @@ public sealed class PineconeClient : IDisposable
         where TTransport : ITransport<TTransport>
     {
         var response = await Http
-            .GetFromJsonAsync($"/indexes/{UrlEncoder.Default.Encode(name)}", SerializerContext.Default.IndexDetails, ct)
+            .GetFromJsonAsync($"/indexes/{UrlEncoder.Default.Encode(name)}", ClientContext.Default.IndexDetails, ct)
             .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed.");
 
         // TODO: Host is optional according to the API spec: https://docs.pinecone.io/reference/api/control-plane/describe_index
@@ -196,7 +196,7 @@ public sealed class PineconeClient : IDisposable
             .PatchAsJsonAsync(
                 $"/indexes/{UrlEncoder.Default.Encode(name)}",
                 request,
-                SerializerContext.Default.ConfigureIndexRequest,
+                ClientContext.Default.ConfigureIndexRequest,
                 ct)
             .ConfigureAwait(false);
 
@@ -221,7 +221,7 @@ public sealed class PineconeClient : IDisposable
     public async Task<CollectionDetails[]> ListCollections(CancellationToken ct = default)
     {
         var listCollectionsResult = await Http
-            .GetFromJsonAsync("/collections", SerializerContext.Default.ListCollectionsResult, ct)
+            .GetFromJsonAsync("/collections", ClientContext.Default.ListCollectionsResult, ct)
             .ConfigureAwait(false);
 
         return listCollectionsResult?.Collections ?? [];
@@ -237,7 +237,7 @@ public sealed class PineconeClient : IDisposable
     {
         var request = new CreateCollectionRequest { Name = name, Source = source };
         var response = await Http
-            .PostAsJsonAsync("/collections", request, SerializerContext.Default.CreateCollectionRequest, ct)
+            .PostAsJsonAsync("/collections", request, ClientContext.Default.CreateCollectionRequest, ct)
             .ConfigureAwait(false);
 
         await response.CheckStatusCode(ct).ConfigureAwait(false);
@@ -254,7 +254,7 @@ public sealed class PineconeClient : IDisposable
         return await Http
             .GetFromJsonAsync(
                 $"/collections/{UrlEncoder.Default.Encode(name)}",
-                SerializerContext.Default.CollectionDetails, 
+                ClientContext.Default.CollectionDetails, 
                 ct)
             .ConfigureAwait(false) ?? ThrowHelpers.JsonException<CollectionDetails>();
     }

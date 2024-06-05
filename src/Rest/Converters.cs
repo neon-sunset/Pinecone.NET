@@ -105,13 +105,13 @@ public class MetadataValueConverter : JsonConverter<MetadataValue>
 
     private static MetadataValue[] ReadArray(ref Utf8JsonReader reader)
     {
-        return JsonSerializer.Deserialize(ref reader, SerializerContext.Default.MetadataValueArray)
+        return JsonSerializer.Deserialize(ref reader, ClientContext.Default.MetadataValueArray)
             ?? ThrowHelpers.JsonException<MetadataValue[]>();
     }
 
     private static MetadataMap ReadMap(ref Utf8JsonReader reader)
     {
-        return JsonSerializer.Deserialize(ref reader, SerializerContext.Default.MetadataMap)
+        return JsonSerializer.Deserialize(ref reader, ClientContext.Default.MetadataMap)
             ?? ThrowHelpers.JsonException<MetadataMap>();
     }
 

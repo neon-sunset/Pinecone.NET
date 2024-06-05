@@ -25,12 +25,12 @@ public readonly record struct RestTransport : ITransport<RestTransport>
     {
         var request = new DescribeStatsRequest { Filter = filter };
         var response = await Http
-            .PostAsJsonAsync("/describe_index_stats", request, SerializerContext.Default.DescribeStatsRequest, ct)
+            .PostAsJsonAsync("/describe_index_stats", request, RestTransportContext.Default.DescribeStatsRequest, ct)
             .ConfigureAwait(false);
 
         await response.CheckStatusCode(ct).ConfigureAwait(false);
         return await response.Content
-            .ReadFromJsonAsync(SerializerContext.Default.IndexStats, ct)
+            .ReadFromJsonAsync(RestTransportContext.Default.IndexStats, ct)
             .ConfigureAwait(false) ?? ThrowHelpers.JsonException<IndexStats>();
     }
 
@@ -64,12 +64,12 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         };
 
         var response = await Http
-            .PostAsJsonAsync("/query", request, SerializerContext.Default.QueryRequest, ct)
+            .PostAsJsonAsync("/query", request, RestTransportContext.Default.QueryRequest, ct)
             .ConfigureAwait(false);
 
         await response.CheckStatusCode(ct).ConfigureAwait(false);
         return (await response.Content
-            .ReadFromJsonAsync(SerializerContext.Default.QueryResponse, ct)
+            .ReadFromJsonAsync(RestTransportContext.Default.QueryResponse, ct)
             .ConfigureAwait(false))
             .Matches ?? ThrowHelpers.JsonException<ScoredVector[]>();
     }
@@ -83,12 +83,12 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         };
 
         var response = await Http
-            .PostAsJsonAsync("/vectors/upsert", request, SerializerContext.Default.UpsertRequest, ct)
+            .PostAsJsonAsync("/vectors/upsert", request, RestTransportContext.Default.UpsertRequest, ct)
             .ConfigureAwait(false);
 
         await response.CheckStatusCode(ct).ConfigureAwait(false);
         return (await response.Content
-            .ReadFromJsonAsync(SerializerContext.Default.UpsertResponse, ct)
+            .ReadFromJsonAsync(RestTransportContext.Default.UpsertResponse, ct)
             .ConfigureAwait(false)).UpsertedCount;
     }
 
@@ -98,7 +98,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         Debug.Assert(request.Metadata is null);
 
         var response = await Http
-            .PostAsJsonAsync("/vectors/update", request, SerializerContext.Default.UpdateRequest, ct)
+            .PostAsJsonAsync("/vectors/update", request, RestTransportContext.Default.UpdateRequest, ct)
             .ConfigureAwait(false);
         await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
@@ -127,7 +127,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         };
 
         var response = await Http
-            .PostAsJsonAsync("/vectors/update", request, SerializerContext.Default.UpdateRequest, ct)
+            .PostAsJsonAsync("/vectors/update", request, RestTransportContext.Default.UpdateRequest, ct)
             .ConfigureAwait(false);
         await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
@@ -151,7 +151,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         }
 
         return (await Http
-            .GetFromJsonAsync(addressBuilder.ToString(), SerializerContext.Default.FetchResponse, ct)
+            .GetFromJsonAsync(addressBuilder.ToString(), RestTransportContext.Default.FetchResponse, ct)
             .ConfigureAwait(false)).Vectors;
     }
 
@@ -177,7 +177,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
     private async Task Delete(DeleteRequest request, CancellationToken ct)
     {
         var response = await Http
-            .PostAsJsonAsync("/vectors/delete", request, SerializerContext.Default.DeleteRequest, ct)
+            .PostAsJsonAsync("/vectors/delete", request, RestTransportContext.Default.DeleteRequest, ct)
             .ConfigureAwait(false);
         await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
