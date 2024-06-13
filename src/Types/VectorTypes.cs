@@ -91,7 +91,13 @@ public sealed class MetadataMap : Dictionary<string, MetadataValue>
     /// Creates a new instance of the <see cref="MetadataMap" /> class from an existing collection.
     /// </summary>
     /// <param name="collection"></param>
-    public MetadataMap(IEnumerable<KeyValuePair<string, MetadataValue>> collection) : base(collection) { }
+    public MetadataMap(IEnumerable<KeyValuePair<string, MetadataValue>> collection)
+#if NETSTANDARD2_0
+        : base(collection.ToDictionary(e => e.Key, e => e.Value))
+#else
+        : base(collection)
+#endif
+    { }
 }
 
 /// <summary>
