@@ -168,13 +168,35 @@ public sealed class PineconeClient : IDisposable
             Status = response.Status,
 #if NET7_0_OR_GREATER
             Transport = TTransport.Create(host, apiKey)
-#else
+#elif !NETSTANDARD2_0
             Transport = ITransport<TTransport>.Create(host, apiKey)
+#else
+            Transport = Create<TTransport>(host, apiKey)
 #endif
         };
 
         return index;
     }
+
+#if !NET7_0_OR_GREATER
+    private static T Create<T>(string host, string apiKey)
+    {
+        if (typeof(T) == typeof(GrpcTransport))
+        {
+            return (T)(object)new GrpcTransport(host, apiKey);
+        }
+        else if (typeof(T) == typeof(RestTransport))
+        {
+            return (T)(object)new RestTransport(host, apiKey);
+        }
+        else
+        {
+            var instance = (T?)Activator.CreateInstance(typeof(T), host, apiKey);
+
+            return instance ?? throw new InvalidOperationException($"Unable to create instance of {typeof(T)}");
+        }
+    }
+#endif
 
     /// <summary>
     /// Specifies the pod type and number of replicas for an index. It applies to pod-based indexes only. Serverless indexes scale automatically based on usage.

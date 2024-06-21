@@ -13,7 +13,7 @@ public interface ITransport<
 {
 #if NET7_0_OR_GREATER
     static abstract T Create(string host, string apiKey);
-#else
+#elif !NETSTANDARD2_0
     static T Create(string host, string apiKey)
     {
         if (typeof(T) == typeof(GrpcTransport))

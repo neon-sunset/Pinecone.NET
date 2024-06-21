@@ -148,6 +148,7 @@ public sealed partial record Index<TTransport> : IDisposable
         string? indexNamespace = null,
         CancellationToken ct = default)
     {
+#if !NETSTANDARD2_0
         const int batchSize = 100;
         const int parallelism = 20;
         const int threshold = 400;
@@ -156,10 +157,12 @@ public sealed partial record Index<TTransport> : IDisposable
         {
             return Upsert(vectors, batchSize, parallelism, indexNamespace, ct);
         }
+#endif
 
         return Transport.Upsert(vectors, indexNamespace, ct);
     }
 
+#if !NETSTANDARD2_0
     /// <summary>
     /// Writes vectors into the index as batches in parallel. If a new value is provided for an existing vector ID, it will overwrite the previous value.
     /// </summary>
@@ -200,6 +203,7 @@ public sealed partial record Index<TTransport> : IDisposable
 
         return upserted;
     }
+#endif
 
     /// <summary>
     /// Updates a vector using the <see cref="Vector"/> object.
@@ -242,6 +246,7 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <returns>A dictionary containing vector IDs and the corresponding <see cref="Vector"/> objects containing the vector information.</returns>
     public Task<Dictionary<string, Vector>> Fetch(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
+#if !NETSTANDARD2_0
         const int batchSize = 200;
         const int parallelism = 20;
         const int threshold = 600;
@@ -250,10 +255,12 @@ public sealed partial record Index<TTransport> : IDisposable
         {
             return Fetch(ids, batchSize, parallelism, indexNamespace, ct);
         }
+#endif
 
         return Transport.Fetch(ids, indexNamespace, ct);
     }
 
+#if !NETSTANDARD2_0
     /// <summary>
     /// Looks up and returns vectors by ID as batches in parallel.
     /// </summary>
@@ -292,6 +299,7 @@ public sealed partial record Index<TTransport> : IDisposable
 
         return new(fetched.SelectMany(batch => batch));
     }
+#endif
 
     /// <summary>
     /// Deletes vectors with specified ids.

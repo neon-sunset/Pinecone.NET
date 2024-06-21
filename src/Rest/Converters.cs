@@ -57,7 +57,11 @@ public class IndexNamespaceArrayConverter : JsonConverter<IndexNamespace[]>
                     ThrowHelper.ThrowFormatException("Expected number value");
                 }
 
+#if !NETSTANDARD2_0
                 buffer.Add(new() { Name = Encoding.UTF8.GetString(nameSpan), VectorCount = reader.GetUInt32() });
+#else
+                buffer.Add(new() { Name = Encoding.UTF8.GetString(nameSpan.ToArray()), VectorCount = reader.GetUInt32() });
+#endif
             }
         }
 
