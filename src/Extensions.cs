@@ -20,7 +20,6 @@ internal static class Extensions
         static async ValueTask ThrowOnFailedResponse(
             HttpResponseMessage response, string requestName, CancellationToken ct)
         {
-
             throw new HttpRequestException($"{requestName} request has failed. " +
 #if NETSTANDARD2_0
                 $"Code: {response.StatusCode}. Message: {await response.Content.ReadAsStringAsync().ConfigureAwait(false)}");
@@ -29,4 +28,12 @@ internal static class Extensions
 #endif
         }
     }
+
+#if NETSTANDARD2_0
+    internal static void Deconstruct<T1, T2>(this KeyValuePair<T1, T2> tuple, out T1 key, out T2 value)
+    {
+        key = tuple.Key;
+        value = tuple.Value;
+    }
+#endif
 }

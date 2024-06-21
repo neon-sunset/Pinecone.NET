@@ -88,7 +88,7 @@ public sealed class PineconeClient : IDisposable
         uint? shards = 1, 
         uint? replicas = 1, 
         CancellationToken ct = default)
-        => CreateIndexAsync(new CreateIndexRequest
+        => CreateIndex(new CreateIndexRequest
         {
             Name = name,
             Dimension = dimension,
@@ -107,7 +107,7 @@ public sealed class PineconeClient : IDisposable
     /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     /// <returns></returns>
     public Task CreateServerlessIndex(string name, uint dimension, Metric metric, string cloud, string region, CancellationToken ct = default)
-        => CreateIndexAsync(new CreateIndexRequest
+        => CreateIndex(new CreateIndexRequest
         {
             Name = name,
             Dimension = dimension,
@@ -115,7 +115,7 @@ public sealed class PineconeClient : IDisposable
             Spec = new IndexSpec { Serverless = new ServerlessSpec { Cloud = cloud, Region = region } }
         }, ct);
 
-    private async Task CreateIndexAsync(CreateIndexRequest request, CancellationToken ct = default)
+    private async Task CreateIndex(CreateIndexRequest request, CancellationToken ct = default)
     {
         var response = await Http
             .PostAsJsonAsync("/indexes", request, ClientContext.Default.CreateIndexRequest, ct)
@@ -168,10 +168,10 @@ public sealed class PineconeClient : IDisposable
             Status = response.Status,
 #if NET7_0_OR_GREATER
             Transport = TTransport.Create(host, apiKey)
-#elif !NETSTANDARD2_0
+#elif NET6_0
             Transport = ITransport<TTransport>.Create(host, apiKey)
 #else
-            Transport = Create<TTransport>(host, apiKey)
+            Transport = CreateTransport<TTransport>(host, apiKey)
 #endif
         };
 
@@ -179,7 +179,7 @@ public sealed class PineconeClient : IDisposable
     }
 
 #if !NET7_0_OR_GREATER
-    private static T Create<T>(string host, string apiKey)
+    internal static T CreateTransport<T>(string host, string apiKey)
     {
         if (typeof(T) == typeof(GrpcTransport))
         {

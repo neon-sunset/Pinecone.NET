@@ -131,7 +131,7 @@ internal static class Converters
         var buffer = FieldAccessors<T>.GetArray(source);
         if (buffer.Length != source.Count)
         {
-            buffer = buffer[..source.Count];
+            buffer = buffer.AsSpan(0, source.Count).ToArray();
         }
 
         return buffer;
