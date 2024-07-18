@@ -6,6 +6,7 @@ namespace PineconeTests;
 
 [Collection("PineconeTests")]
 [PineconeApiKeySetCondition]
+[SkipTestCondition("Test environment uses free tier which does not support pod-based indexes.")]
 public class PodBasedDataTests(PodBasedDataTests.PodBasedDataTestFixture fixture) : DataTestBase<PodBasedDataTests.PodBasedDataTestFixture>(fixture)
 {
     public class PodBasedDataTestFixture : DataTestFixtureBase
