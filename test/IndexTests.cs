@@ -16,9 +16,9 @@ public class IndexTests
     [InlineData(Metric.DotProduct, true)]
     [InlineData(Metric.Cosine, true)]
     [InlineData(Metric.Euclidean, true)]
-    [InlineData(Metric.DotProduct, false)]
-    [InlineData(Metric.Cosine, false)]
-    [InlineData(Metric.Euclidean, false)]
+    [InlineData(Metric.DotProduct, false, Skip = "Test environment uses free tier which does not support pod-based indexes.")]
+    [InlineData(Metric.Cosine, false, Skip = "Test environment uses free tier which does not support pod-based indexes.")]
+    [InlineData(Metric.Euclidean, false, Skip = "Test environment uses free tier which does not support pod-based indexes.")]
     public async Task Create_and_delete_index(Metric metric, bool serverless)
     {
         var indexName = serverless ? "serverless-index" : "pod-based-index";
