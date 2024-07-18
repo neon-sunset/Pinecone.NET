@@ -114,6 +114,47 @@ public readonly record struct MetadataValue
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal MetadataValue(object? value) => Inner = value;
 
+    /// <summary>
+    /// Tries to create a new instance of the <see cref="MetadataValue" /> from the specified value.
+    /// </summary>
+    /// <typeparam name="T">The type of the value.</typeparam>
+    /// <param name="value">The value to create a metadata value from.</param>
+    /// <param name="metadataValue">The metadata value created.</param>
+    /// <returns><c>true</c> if the metadata value supports provided type of value; otherwise, <c>false</c>.</returns>
+    public static bool TryCreate<T>(T? value, out MetadataValue metadataValue)
+    {
+        switch (value)
+        {
+            case null: metadataValue = default; return false;
+            case bool b: metadataValue = b; return true;
+            case string s: metadataValue = s; return true;
+            case int i: metadataValue = i; return true;
+            case long l: metadataValue = l; return true;
+            case float f: metadataValue = f; return true;
+            case double d: metadataValue = d; return true;
+            case decimal m: metadataValue = m; return true;
+            case MetadataMap map: metadataValue = map; return true;
+            case MetadataValue[] array: metadataValue = array; return true;
+            case List<MetadataValue> list: metadataValue = list; return true;
+
+            case string[] s: metadataValue = s; return true;
+            case int[] i: metadataValue = i; return true;
+            case long[] l: metadataValue = l; return true;
+            case float[] f: metadataValue = f; return true;
+            case double[] d: metadataValue = d; return true;
+            case decimal[] m: metadataValue = m; return true;
+
+            case List<string> s: metadataValue = s; return true;
+            case List<int> i: metadataValue = i; return true;
+            case List<long> l: metadataValue = l; return true;
+            case List<float> f: metadataValue = f; return true;
+            case List<double> d: metadataValue = d; return true;
+            case List<decimal> m: metadataValue = m; return true;
+
+            default: metadataValue = default; return false;
+        }
+    }
+
     // Main supported types
     public static implicit operator MetadataValue(bool value) => new(value);
     public static implicit operator MetadataValue(string? value) => new(value);
