@@ -2,6 +2,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Json;
 using System.Text.Encodings.Web;
 using CommunityToolkit.Diagnostics;
+using Microsoft.Extensions.Http.Logging;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Pinecone.Grpc;
 using Pinecone.Rest;
 
@@ -13,13 +16,16 @@ namespace Pinecone;
 public sealed class PineconeClient : IDisposable
 {
     private readonly HttpClient Http;
+    private readonly ILoggerFactory? LoggerFactory;
+    private readonly ILogger Logger;
 
     /// <summary>
     /// Creates a new instance of the <see cref="PineconeClient" /> class.
     /// </summary>
     /// <param name="apiKey">API key used to connect to Pinecone.</param>
-    public PineconeClient(string apiKey)
-        : this(apiKey, new Uri($"https://api.pinecone.io"))
+    /// <param name="loggerFactory">The logger factory to be used.</param>
+    public PineconeClient(string apiKey, ILoggerFactory? loggerFactory = null)
+        : this(apiKey, new Uri($"https://api.pinecone.io"), loggerFactory)
     {
     }
 
@@ -28,12 +34,17 @@ public sealed class PineconeClient : IDisposable
     /// </summary>
     /// <param name="apiKey">API key used to connect to Pinecone.</param>
     /// <param name="baseUrl">Url used to connect to Pinecone.</param>
-    public PineconeClient(string apiKey, Uri baseUrl)
+    /// <param name="loggerFactory">The logger factory to be used.</param>
+    public PineconeClient(string apiKey, Uri baseUrl, ILoggerFactory? loggerFactory = null)
     {
         Guard.IsNotNullOrWhiteSpace(apiKey);
         Guard.IsNotNull(baseUrl);
 
-        Http = new() { BaseAddress = baseUrl };
+        LoggerFactory = loggerFactory;
+        Logger = loggerFactory?.CreateLogger<PineconeClient>() ?? (ILogger)NullLogger.Instance;
+
+        var httpClientLogger = loggerFactory?.CreateLogger<HttpClient>() ?? (ILogger)NullLogger.Instance;
+        Http = new(new LoggingHttpMessageHandler(httpClientLogger) { InnerHandler = new HttpClientHandler() }) { BaseAddress = baseUrl };
         Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
     }
 
@@ -42,13 +53,15 @@ public sealed class PineconeClient : IDisposable
     /// </summary>
     /// <param name="apiKey">API key used to connect to Pinecone.</param>
     /// <param name="client">HTTP client used to connect to Pinecone.</param>
-    public PineconeClient(string apiKey, HttpClient client)
+    /// <param name="loggerFactory">The logger factory to be used.</param>
+    public PineconeClient(string apiKey, HttpClient client, ILoggerFactory? loggerFactory = null)
     {
         Guard.IsNotNullOrWhiteSpace(apiKey);
         Guard.IsNotNull(client);
 
         Http = client;
         Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
+        Logger = loggerFactory?.CreateLogger<PineconeClient>() ?? (ILogger)NullLogger.Instance;
     }
 
     /// <summary>
@@ -58,9 +71,15 @@ public sealed class PineconeClient : IDisposable
     /// <returns>List of index descriptions for all indexes in the project.</returns>
     public async Task<IndexDetails[]> ListIndexes(CancellationToken ct = default)
     {
+        var operationName = "List indexes";
+        Logger.OperationStarted(operationName);
+
         var listIndexesResult = await Http
             .GetFromJsonAsync("/indexes", ClientContext.Default.ListIndexesResult, ct)
             .ConfigureAwait(false);
+
+        var indexCount = listIndexesResult?.Indexes.Length ?? 0;
+        Logger.OperationCompletedWithOutcome(operationName, $"indexes found: {indexCount}.");
 
         return listIndexesResult?.Indexes ?? [];
     }
@@ -78,7 +97,7 @@ public sealed class PineconeClient : IDisposable
     /// <param name="replicas">Number of replicas. Replicas duplicate the index for greater availability and throughput.</param>
     /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     /// <returns></returns>
-    public Task CreatePodBasedIndex(
+    public async Task CreatePodBasedIndex(
         string name, 
         uint dimension, 
         Metric metric, 
@@ -88,13 +107,20 @@ public sealed class PineconeClient : IDisposable
         uint? shards = 1, 
         uint? replicas = 1, 
         CancellationToken ct = default)
-        => CreateIndex(new CreateIndexRequest
+    {
+        var operationName = $"Create pod-based index '{name}'";
+        Logger.OperationStarted(operationName);
+
+        await CreateIndex(new CreateIndexRequest
         {
             Name = name,
             Dimension = dimension,
             Metric = metric,
             Spec = new IndexSpec { Pod = new PodSpec { Environment = environment, PodType = podType, Pods = pods, Replicas = replicas, Shards = shards } }
-        }, ct);
+        }, operationName, ct);
+
+        Logger.OperationCompleted(operationName);
+    }
 
     /// <summary>
     /// Creates a serverless index. Serverless indexes scale dynamically based on usage.
@@ -106,22 +132,29 @@ public sealed class PineconeClient : IDisposable
     /// <param name="region">The region where the index will be created.</param>
     /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     /// <returns></returns>
-    public Task CreateServerlessIndex(string name, uint dimension, Metric metric, string cloud, string region, CancellationToken ct = default)
-        => CreateIndex(new CreateIndexRequest
+    public async Task CreateServerlessIndex(string name, uint dimension, Metric metric, string cloud, string region, CancellationToken ct = default)
+    {
+        var operationName = $"Create serverless index '{name}'";
+        Logger.OperationStarted(operationName);
+
+        await CreateIndex(new CreateIndexRequest
         {
             Name = name,
             Dimension = dimension,
             Metric = metric,
             Spec = new IndexSpec { Serverless = new ServerlessSpec { Cloud = cloud, Region = region } }
-        }, ct);
+        }, operationName, ct);
 
-    private async Task CreateIndex(CreateIndexRequest request, CancellationToken ct = default)
+        Logger.OperationCompleted(operationName);
+    }
+
+    private async Task CreateIndex(CreateIndexRequest request, string operationName, CancellationToken ct = default)
     {
         var response = await Http
             .PostAsJsonAsync("/indexes", request, ClientContext.Default.CreateIndexRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode(ct).ConfigureAwait(false);
+        await response.CheckStatusCode(Logger, operationName, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -151,14 +184,20 @@ public sealed class PineconeClient : IDisposable
     {
         var response = await Http
             .GetFromJsonAsync($"/indexes/{UrlEncoder.Default.Encode(name)}", ClientContext.Default.IndexDetails, ct)
-            .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed.");
+            .ConfigureAwait(false);
+
+        if (response is null)
+        {
+            Logger.OperationFailed("GetIndex", "request has failed.");
+            throw new HttpRequestException("GetIndex request has failed.");
+        }
 
         // TODO: Host is optional according to the API spec: https://docs.pinecone.io/reference/api/control-plane/describe_index
         // but Transport requires it
         var host = response.Host!;
         var apiKey = Http.DefaultRequestHeaders.GetValues(Constants.RestApiKey).First();
 
-        var index = new Index<TTransport>
+        var index = new Index<TTransport>(LoggerFactory)
         {
             Name = response.Name,
             Dimension = response.Dimension,
@@ -167,11 +206,11 @@ public sealed class PineconeClient : IDisposable
             Spec = response.Spec,
             Status = response.Status,
 #if NET7_0_OR_GREATER
-            Transport = TTransport.Create(host, apiKey)
+            Transport = TTransport.Create(host, apiKey, LoggerFactory)
 #elif NET6_0
-            Transport = ITransport<TTransport>.Create(host, apiKey)
+            Transport = ITransport<TTransport>.Create(host, apiKey, LoggerFactory)
 #else
-            Transport = CreateTransport<TTransport>(host, apiKey)
+            Transport = CreateTransport<TTransport>(host, apiKey, LoggerFactory)
 #endif
         };
 
@@ -179,15 +218,15 @@ public sealed class PineconeClient : IDisposable
     }
 
 #if !NET7_0_OR_GREATER
-    internal static T CreateTransport<T>(string host, string apiKey)
+    internal static T CreateTransport<T>(string host, string apiKey, ILoggerFactory? loggerFactory)
     {
         if (typeof(T) == typeof(GrpcTransport))
         {
-            return (T)(object)new GrpcTransport(host, apiKey);
+            return (T)(object)new GrpcTransport(host, apiKey, loggerFactory);
         }
         else if (typeof(T) == typeof(RestTransport))
         {
-            return (T)(object)new RestTransport(host, apiKey);
+            return (T)(object)new RestTransport(host, apiKey, loggerFactory);
         }
         else
         {
@@ -207,10 +246,14 @@ public sealed class PineconeClient : IDisposable
     /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     public async Task ConfigureIndex(string name, int? replicas = null, string? podType = null, CancellationToken ct = default)
     {
+        var operationName = $"Configure index '{name}'";
+        Logger.OperationStarted(operationName);
+
         if (replicas is null && podType is null or [])
         {
-            ThrowHelper.ThrowArgumentException(
-                "At least one of the following parameters must be specified: replicas, podType");
+            var errorMessage = "At least one of the following parameters must be specified: replicas, podType.";
+            Logger.OperationFailed(operationName, errorMessage);
+            ThrowHelper.ThrowArgumentException(errorMessage);
         }
 
         var request = new ConfigureIndexRequest { Replicas = replicas, PodType = podType };
@@ -222,7 +265,9 @@ public sealed class PineconeClient : IDisposable
                 ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode(ct).ConfigureAwait(false);
+        await response.CheckStatusCode(Logger, operationName, ct).ConfigureAwait(false);
+
+        Logger.OperationCompleted(operationName);
     }
 
     /// <summary>
@@ -230,10 +275,17 @@ public sealed class PineconeClient : IDisposable
     /// </summary>
     /// <param name="name">Name of index to delete.</param>
     /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
-    public async Task DeleteIndex(string name, CancellationToken ct = default) =>
+    public async Task DeleteIndex(string name, CancellationToken ct = default)
+    {
+        var operationName = $"Delete index '{name}'";
+        Logger.OperationStarted(operationName);
+
         await (await Http.DeleteAsync($"/indexes/{UrlEncoder.Default.Encode(name)}", ct).ConfigureAwait(false))
-            .CheckStatusCode(ct)
+            .CheckStatusCode(Logger, operationName, ct)
             .ConfigureAwait(false);
+
+        Logger.OperationCompleted(operationName);
+    }
 
     /// <summary>
     /// Returns a list of collections in the project.
@@ -242,9 +294,15 @@ public sealed class PineconeClient : IDisposable
     /// <returns>List of collection descriptions for all collections in the project.</returns>
     public async Task<CollectionDetails[]> ListCollections(CancellationToken ct = default)
     {
+        var operationName = "List collections";
+        Logger.OperationStarted(operationName);
+
         var listCollectionsResult = await Http
             .GetFromJsonAsync("/collections", ClientContext.Default.ListCollectionsResult, ct)
             .ConfigureAwait(false);
+
+        var collectionCount = listCollectionsResult?.Collections.Length ?? 0;
+        Logger.OperationCompletedWithOutcome(operationName, $"collections found: {collectionCount}.");
 
         return listCollectionsResult?.Collections ?? [];
     }
@@ -257,12 +315,17 @@ public sealed class PineconeClient : IDisposable
     /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
     public async Task CreateCollection(string name, string source, CancellationToken ct = default)
     {
+        var operationName = $"Create collection '{name}'";
+        Logger.OperationStarted(operationName);
+
         var request = new CreateCollectionRequest { Name = name, Source = source };
         var response = await Http
             .PostAsJsonAsync("/collections", request, ClientContext.Default.CreateCollectionRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode(ct).ConfigureAwait(false);
+        await response.CheckStatusCode(Logger, operationName, ct).ConfigureAwait(false);
+
+        Logger.OperationCompleted(operationName);
     }
 
     /// <summary>
@@ -273,12 +336,26 @@ public sealed class PineconeClient : IDisposable
     /// <returns>A <see cref="CollectionDetails"/> describing the collection.</returns>
     public async Task<CollectionDetails> DescribeCollection(string name, CancellationToken ct = default)
     {
-        return await Http
+        var operationName = $"Describe collection '{name}'";
+        Logger.OperationStarted(operationName);
+
+        var result = await Http
             .GetFromJsonAsync(
                 $"/collections/{UrlEncoder.Default.Encode(name)}",
                 ClientContext.Default.CollectionDetails, 
                 ct)
-            .ConfigureAwait(false) ?? ThrowHelpers.JsonException<CollectionDetails>();
+            .ConfigureAwait(false);
+
+        if (result is null)
+        {
+            var errorMessage = $"Failed to deserialize {typeof(CollectionDetails)}.";
+            Logger.OperationFailed(operationName, errorMessage);
+            ThrowHelpers.JsonException<CollectionDetails>(errorMessage);
+        }
+
+        Logger.OperationCompleted(operationName);
+
+        return result;
     }
 
     /// <summary>
@@ -286,10 +363,17 @@ public sealed class PineconeClient : IDisposable
     /// </summary>
     /// <param name="name">Name of the collection to delete.</param>
     /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
-    public async Task DeleteCollection(string name, CancellationToken ct = default) =>
+    public async Task DeleteCollection(string name, CancellationToken ct = default)
+    {
+        var operationName = $"Delete collection '{name}'";
+        Logger.OperationStarted(operationName);
+
         await (await Http.DeleteAsync($"/collections/{UrlEncoder.Default.Encode(name)}", ct))
-            .CheckStatusCode(ct)
+            .CheckStatusCode(Logger, operationName, ct)
             .ConfigureAwait(false);
+
+        Logger.OperationCompleted(operationName);
+    }
 
     /// <inheritdoc />
     public void Dispose() => Http.Dispose();

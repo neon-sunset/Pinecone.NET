@@ -1,13 +1,15 @@
-﻿using Pinecone;
+﻿using Microsoft.Extensions.Logging;
+using Pinecone;
 using PineconeTests.Xunit;
 using Xunit;
+using Xunit.Sdk;
 
 namespace PineconeTests;
 
 public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<TFixture>
     where TFixture: DataTestFixtureBase
 {
-    private TFixture Fixture { get; } = fixture;
+    protected TFixture Fixture { get; } = fixture;
 
     [PineconeFact]
     public async Task Basic_query()
@@ -287,6 +289,87 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
     [PineconeFact]
     public async Task Delete_vector_that_doesnt_exist()
     {
-        await Fixture.Index.Delete(["non-existing-index"]);
+        await Fixture.Index.Delete(["non-existing-vector"]);
+    }
+
+    [PineconeFact]
+    public async Task Logging_is_properly_wired()
+    {
+        var logOutput = new List<string>();
+        var loggingClient = new PineconeClient(UserSecretsExtensions.ReadPineconeApiKey(), new MyLoggerFactory(logOutput));
+        var loggingIndex = await loggingClient.GetIndex(Fixture.IndexName);
+
+        await loggingClient.ListIndexes();
+        Assert.Contains($"[Pinecone.PineconeClient | Trace]: List indexes started.", logOutput);
+        Assert.Contains(logOutput, x => x.StartsWith("[Pinecone.PineconeClient | Debug]: List indexes completed - indexes found: "));
+
+        await loggingClient.ListCollections();
+        Assert.Contains($"[Pinecone.PineconeClient | Trace]: List collections started.", logOutput);
+        Assert.Contains(logOutput, x => x.StartsWith("[Pinecone.PineconeClient | Debug]: List collections completed - collections found: "));
+
+        await loggingIndex.Query([0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f], topK: 2);
+        Assert.Contains($"[Pinecone.Index | Trace]: Query index '{Fixture.IndexName}' based on vector values started.", logOutput);
+        Assert.Contains($"[Pinecone.Index | Debug]: Query index '{Fixture.IndexName}' based on vector values completed.", logOutput);
+
+        await loggingIndex.Query("basic-vector-1", topK: 2);
+        Assert.Contains($"[Pinecone.Index | Trace]: Query index '{Fixture.IndexName}' based on vector ID started.", logOutput);
+        Assert.Contains($"[Pinecone.Index | Debug]: Query index '{Fixture.IndexName}' based on vector ID completed.", logOutput);
+
+        var vectors = await loggingIndex.Fetch(["basic-vector-2"]);
+        Assert.Contains($"[Pinecone.Index | Trace]: Fetch from index '{Fixture.IndexName}' started.", logOutput);
+        Assert.Contains($"[Pinecone.Index | Debug]: Fetch from index '{Fixture.IndexName}' completed.", logOutput);
+
+        // "upserting" the same vector to avoid side-effects
+        await loggingIndex.Upsert([vectors["basic-vector-2"]]);
+        Assert.Contains($"[Pinecone.Index | Trace]: Upsert to index '{Fixture.IndexName}' started.", logOutput);
+        Assert.Contains($"[Pinecone.Index | Debug]: Upsert to index '{Fixture.IndexName}' completed - upserted count: 1.", logOutput);
+
+        await loggingIndex.Delete(["non-existing-vector"]);
+        Assert.Contains($"[Pinecone.Index | Trace]: Delete from index '{Fixture.IndexName}' based on IDs started.", logOutput);
+        Assert.Contains($"[Pinecone.Index | Debug]: Delete from index '{Fixture.IndexName}' based on IDs completed.", logOutput);
+
+        // error from PineconeClient
+        var message = (await Assert.ThrowsAsync<ArgumentException>(() => loggingClient.ConfigureIndex(Fixture.IndexName))).Message;
+        Assert.Equal("At least one of the following parameters must be specified: replicas, podType.", message);
+        Assert.Contains($"[Pinecone.PineconeClient | Trace]: Configure index '{Fixture.IndexName}' started.", logOutput);
+        Assert.Contains($"[Pinecone.PineconeClient | Error]: Configure index '{Fixture.IndexName}' failed: {message}", logOutput);
+
+        // error from Transport layer
+        message = (await Assert.ThrowsAsync<ArgumentException>(() => loggingIndex.Query(id: null!, topK: 2))).Message;
+        Assert.Equal("At least one of the following parameters must be non-null: id, values, sparseValues.", message);
+        Assert.Contains($"[Pinecone.Index | Trace]: Query index '{Fixture.IndexName}' based on vector ID started.", logOutput);
+        Assert.Contains($"[Pinecone.Grpc.GrpcTransport | Error]: Query failed: {message}", logOutput);
+
+        // verify that Grpc and HttpClient loggers are correctly wired up
+        Assert.Contains(logOutput, x => x.StartsWith("[Grpc.Net.Client.Internal.GrpcCall |"));
+        Assert.Contains(logOutput, x => x.StartsWith("[System.Net.Http.HttpClient |"));
+    }
+
+    private class MyLoggerFactory(IList<string> output) : ILoggerFactory
+    {
+        public void AddProvider(ILoggerProvider provider) { }
+
+        public ILogger CreateLogger(string categoryName)
+            => new MyLogger(output, categoryName);
+
+        public void Dispose() { }
+    }
+
+    internal class MyLogger(IList<string> output, string categoryName) : ILogger
+    {
+        public IDisposable BeginScope<TState>(TState state)
+            => null!;
+
+        public bool IsEnabled(LogLevel logLevel)
+            => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (IsEnabled(logLevel))
+            {
+                var message = "[" + categoryName + " | " + logLevel + "]: " + formatter(state, exception).Trim();
+                output.Add(message);
+            }
+        }
     }
 }

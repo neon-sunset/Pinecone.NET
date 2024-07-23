@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using CommunityToolkit.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Pinecone;
 
@@ -52,6 +54,17 @@ public sealed partial record Index<
 public sealed partial record Index<TTransport> : IDisposable
     where TTransport : ITransport<TTransport>
 {
+    private readonly ILogger Logger;
+
+    /// <summary>
+    /// Creates a new instance of the <see cref="Index{TTransport}" /> class.
+    /// </summary>
+    /// <param name="loggerFactory">The logger factory to be used.</param>
+    public Index(ILoggerFactory? loggerFactory)
+    {
+        Logger = loggerFactory?.CreateLogger<Index<TTransport>>() ?? (ILogger)NullLogger.Instance;
+    }
+
     /// <summary>
     /// The transport layer.
     /// </summary>
@@ -63,9 +76,16 @@ public sealed partial record Index<TTransport> : IDisposable
     /// </summary>
     /// <param name="filter">The operation only returns statistics for vectors that satisfy the filter.</param>
     /// <returns>An <see cref="IndexStats"/> object containing index statistics.</returns>
-    public Task<IndexStats> DescribeStats(MetadataMap? filter = null, CancellationToken ct = default)
+    public async Task<IndexStats> DescribeStats(MetadataMap? filter = null, CancellationToken ct = default)
     {
-        return Transport.DescribeStats(filter, ct);
+        var operationName = $"Describe stats for index '{Name}'";
+        Logger.OperationStarted(operationName);
+
+        var result = await Transport.DescribeStats(filter, ct);
+
+        Logger.OperationCompleted(operationName);
+
+        return result;
     }
 
     /// <summary>
@@ -79,7 +99,7 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="includeValues">Indicates whether vector values are included in the response.</param>
     /// <param name="includeMetadata">Indicates whether metadata is included in the response as well as the IDs.</param>
     /// <returns></returns>
-    public Task<ScoredVector[]> Query(
+    public async Task<ScoredVector[]> Query(
         string id,
         uint topK,
         MetadataMap? filter = null,
@@ -88,7 +108,10 @@ public sealed partial record Index<TTransport> : IDisposable
         bool includeMetadata = false,
         CancellationToken ct = default)
     {
-        return Transport.Query(
+        var operationName = $"Query index '{Name}' based on vector ID";
+        Logger.OperationStarted(operationName);
+
+        var result = await Transport.Query(
             id: id,
             values: null,
             sparseValues: null,
@@ -98,6 +121,10 @@ public sealed partial record Index<TTransport> : IDisposable
             includeValues: includeValues,
             includeMetadata: includeMetadata,
             ct: ct);
+
+        Logger.OperationCompleted(operationName);
+
+        return result;
     }
 
     /// <summary>
@@ -111,7 +138,7 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="includeValues">Indicates whether vector values are included in the response.</param>
     /// <param name="includeMetadata">Indicates whether metadata is included in the response as well as the IDs.</param>
     /// <returns></returns>
-    public Task<ScoredVector[]> Query(
+    public async Task<ScoredVector[]> Query(
         float[] values,
         uint topK,
         MetadataMap? filter = null,
@@ -121,7 +148,10 @@ public sealed partial record Index<TTransport> : IDisposable
         bool includeMetadata = false,
         CancellationToken ct = default)
     {
-        return Transport.Query(
+        var operationName = $"Query index '{Name}' based on vector values";
+        Logger.OperationStarted(operationName);
+
+        var result = await Transport.Query(
             id: null,
             values: values,
             sparseValues: sparseValues,
@@ -131,6 +161,10 @@ public sealed partial record Index<TTransport> : IDisposable
             includeValues: includeValues,
             includeMetadata: includeMetadata,
             ct: ct);
+
+        Logger.OperationCompleted(operationName);
+
+        return result;
     }
 
     /// <summary>
@@ -143,7 +177,7 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="vectors">A collection of <see cref="Vector"/> objects to upsert.</param>
     /// <param name="indexNamespace">Namespace to write the vector to. If no namespace is provided, the operation applies to all namespaces.</param>
     /// <returns>The number of vectors upserted.</returns>
-    public Task<uint> Upsert(
+    public async Task<uint> Upsert(
         IEnumerable<Vector> vectors,
         string? indexNamespace = null,
         CancellationToken ct = default)
@@ -155,11 +189,18 @@ public sealed partial record Index<TTransport> : IDisposable
 
         if (vectors.TryGetNonEnumeratedCount(out var count) && count >= threshold)
         {
-            return Upsert(vectors, batchSize, parallelism, indexNamespace, ct);
+            return await Upsert(vectors, batchSize, parallelism, indexNamespace, ct);
         }
 #endif
 
-        return Transport.Upsert(vectors, indexNamespace, ct);
+        var operationName = $"Upsert to index '{Name}'";
+        Logger.OperationStarted(operationName);
+
+        var result = await Transport.Upsert(vectors, indexNamespace, ct);
+
+        Logger.OperationCompletedWithOutcome(operationName, $"upserted count: {result}.");
+
+        return result;
     }
 
 #if NET6_0_OR_GREATER
@@ -181,9 +222,16 @@ public sealed partial record Index<TTransport> : IDisposable
         Guard.IsGreaterThan(batchSize, 0);
         Guard.IsGreaterThan(parallelism, 0);
 
+        var operationName = $"Batch upsert to index '{Name}'";
+        Logger.OperationStarted(operationName);
+
         if (parallelism is 1)
         {
-            return await Transport.Upsert(vectors, indexNamespace, ct);
+            var result = await Transport.Upsert(vectors, indexNamespace, ct);
+
+            Logger.OperationCompletedWithOutcome(operationName, $"upserted count: {result}.");
+
+            return result;
         }
         
         var upserted = 0u;
@@ -201,6 +249,8 @@ public sealed partial record Index<TTransport> : IDisposable
             Interlocked.Add(ref upserted, await Transport.Upsert(batch, indexNamespace, ct));
         });
 
+        Logger.OperationCompletedWithOutcome(operationName, $"upserted count: {upserted}.");
+
         return upserted;
     }
 #endif
@@ -210,9 +260,14 @@ public sealed partial record Index<TTransport> : IDisposable
     /// </summary>
     /// <param name="vector"><see cref="Vector"/> object containing updated information.</param>
     /// <param name="indexNamespace">Namespace to update the vector from. If no namespace is provided, the operation applies to all namespaces.</param>
-    public Task Update(Vector vector, string? indexNamespace = null, CancellationToken ct = default)
+    public async Task Update(Vector vector, string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Transport.Update(vector, indexNamespace, ct);
+        var operationName = $"Update vector object in index '{Name}'";
+        Logger.OperationStarted(operationName);;
+
+        await Transport.Update(vector, indexNamespace, ct);
+
+        Logger.OperationCompleted(operationName);
     }
 
     /// <summary>
@@ -223,7 +278,7 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="sparseValues">New vector sparse data. </param>
     /// <param name="metadata">New vector metadata.</param>
     /// <param name="indexNamespace">Namespace to update the vector from. If no namespace is provided, the operation applies to all namespaces.</param>
-    public Task Update(
+    public async Task Update(
         string id,
         float[]? values = null,
         SparseVector? sparseValues = null,
@@ -231,7 +286,12 @@ public sealed partial record Index<TTransport> : IDisposable
         string? indexNamespace = null,
         CancellationToken ct = default)
     {
-        return Transport.Update(id, values, sparseValues, metadata, indexNamespace, ct);
+        var operationName = $"Update vector values in index '{Name}'";
+        Logger.OperationStarted(operationName);
+
+        await Transport.Update(id, values, sparseValues, metadata, indexNamespace, ct);
+
+        Logger.OperationCompleted(operationName);
     }
 
     /// <summary>
@@ -244,7 +304,7 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="ids">IDs of vectors to fetch.</param>
     /// <param name="indexNamespace">Namespace to fetch vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
     /// <returns>A dictionary containing vector IDs and the corresponding <see cref="Vector"/> objects containing the vector information.</returns>
-    public Task<Dictionary<string, Vector>> Fetch(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
+    public async Task<Dictionary<string, Vector>> Fetch(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
 #if NET6_0_OR_GREATER
         const int batchSize = 200;
@@ -253,11 +313,18 @@ public sealed partial record Index<TTransport> : IDisposable
 
         if (ids.TryGetNonEnumeratedCount(out var count) && count >= threshold)
         {
-            return Fetch(ids, batchSize, parallelism, indexNamespace, ct);
+            return await Fetch(ids, batchSize, parallelism, indexNamespace, ct);
         }
 #endif
 
-        return Transport.Fetch(ids, indexNamespace, ct);
+        var operationName = $"Fetch from index '{Name}'";
+        Logger.OperationStarted(operationName);
+
+        var result = await Transport.Fetch(ids, indexNamespace, ct);
+
+        Logger.OperationCompleted(operationName);
+
+        return result;
     }
 
 #if NET6_0_OR_GREATER
@@ -279,9 +346,17 @@ public sealed partial record Index<TTransport> : IDisposable
         Guard.IsGreaterThan(batchSize, 0);
         Guard.IsGreaterThan(parallelism, 0);
 
+        var operationName = $"Batch fetch from index '{Name}'";
+
+        Logger.OperationStarted(operationName);
+
         if (parallelism is 1)
         {
-            return await Transport.Fetch(ids, indexNamespace, ct);
+            var result = await Transport.Fetch(ids, indexNamespace, ct);
+
+            Logger.OperationCompleted(operationName);
+
+            return result;
         }
 
         var fetched = new ConcurrentStack<Dictionary<string, Vector>>();
@@ -297,6 +372,8 @@ public sealed partial record Index<TTransport> : IDisposable
             fetched.Push(await Transport.Fetch(batch, indexNamespace, ct));
         });
 
+        Logger.OperationCompleted(operationName);
+
         return new(fetched.SelectMany(batch => batch));
     }
 #endif
@@ -306,9 +383,14 @@ public sealed partial record Index<TTransport> : IDisposable
     /// </summary>
     /// <param name="ids"></param>
     /// <param name="indexNamespace">Namespace to delete vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
-    public Task Delete(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
+    public async Task Delete(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Transport.Delete(ids, indexNamespace, ct);
+        var operationName = $"Delete from index '{Name}' based on IDs";
+        Logger.OperationStarted(operationName);
+
+        await Transport.Delete(ids, indexNamespace, ct);
+
+        Logger.OperationCompleted(operationName);
     }
 
     /// <summary>
@@ -316,18 +398,28 @@ public sealed partial record Index<TTransport> : IDisposable
     /// </summary>
     /// <param name="filter">Filter used to select vectors to delete.</param>
     /// <param name="indexNamespace">Namespace to delete vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
-    public Task Delete(MetadataMap filter, string? indexNamespace = null, CancellationToken ct = default)
+    public async Task Delete(MetadataMap filter, string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Transport.Delete(filter, indexNamespace, ct);
+        var operationName = $"Delete from index '{Name}' based on filter";
+        Logger.OperationStarted(operationName);
+
+        await Transport.Delete(filter, indexNamespace, ct);
+
+        Logger.OperationCompleted(operationName);
     }
 
     /// <summary>
     /// Deletes all vectors.
     /// </summary>
     /// <param name="indexNamespace">Namespace to delete vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
-    public Task DeleteAll(string? indexNamespace = null, CancellationToken ct = default)
+    public async Task DeleteAll(string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Transport.DeleteAll(indexNamespace, ct);
+        var operationName = $"Delete all from index '{Name}'";
+        Logger.OperationStarted(operationName);
+
+        await Transport.DeleteAll(indexNamespace, ct);
+
+        Logger.OperationCompleted(operationName);
     }
 
     /// <inheritdoc />

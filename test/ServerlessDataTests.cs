@@ -10,7 +10,7 @@ public class ServerlessDataTests(ServerlessDataTests.ServerlessDataTestFixture f
 {
     public class ServerlessDataTestFixture : DataTestFixtureBase
     {
-        protected override string IndexName => "serverless-data-tests";
+        public override string IndexName => "serverless-data-tests";
 
         protected override async Task CreateIndexAndWait()
         {
