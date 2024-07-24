@@ -1,6 +1,8 @@
 using CommunityToolkit.Diagnostics;
 using Grpc.Core;
 using Grpc.Net.Client;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Pinecone.Grpc;
 
@@ -12,17 +14,20 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 
     private readonly VectorService.VectorServiceClient Grpc;
 
-    public GrpcTransport(string host, string apiKey)
+    private readonly ILogger Logger;
+
+    public GrpcTransport(string host, string apiKey, ILoggerFactory? loggerFactory)
     {
         Guard.IsNotNullOrWhiteSpace(host);
         Guard.IsNotNullOrWhiteSpace(apiKey);
 
         Auth = new() { { Constants.GrpcApiKey, apiKey } };
-        Channel = GrpcChannel.ForAddress($"https://{host}");
+        Channel = GrpcChannel.ForAddress($"https://{host}", new GrpcChannelOptions { LoggerFactory = loggerFactory });
         Grpc = new(Channel);
+        Logger = loggerFactory?.CreateLogger<GrpcTransport>() ?? (ILogger)NullLogger.Instance;
     }
 
-    public static GrpcTransport Create(string host, string apiKey) => new(host, apiKey);
+    public static GrpcTransport Create(string host, string apiKey, ILoggerFactory? loggerFactory) => new(host, apiKey, loggerFactory);
 
     public async Task<IndexStats> DescribeStats(MetadataMap? filter = null, CancellationToken ct = default)
     {
@@ -68,8 +73,9 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         }
         else
         {
-            ThrowHelper.ThrowArgumentException(
-                "At least one of the following parameters must be non-null: id, values, sparseValues");
+            var errorMessage = "At least one of the following parameters must be non-null: id, values, sparseValues.";
+            Logger.OperationFailed("Query", errorMessage);
+            ThrowHelper.ThrowArgumentException(errorMessage);
         }
 
         using var call = Grpc.QueryAsync(request, Auth, cancellationToken: ct);
@@ -113,8 +119,9 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
     {
         if (values is null && sparseValues is null && metadata is null)
         {
-            ThrowHelper.ThrowArgumentException(
-                "At least one of the following parameters must be non-null: values, sparseValues, metadata");
+            var errorMessage = "At least one of the following parameters must be non-null: values, sparseValues, metadata.";
+            Logger.OperationFailed("Update", errorMessage);
+            ThrowHelper.ThrowArgumentException(errorMessage);
         }
 
         var request = new UpdateRequest

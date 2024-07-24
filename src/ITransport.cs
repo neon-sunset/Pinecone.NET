@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 using Pinecone.Grpc;
 using Pinecone.Rest;
 
@@ -12,9 +13,9 @@ public interface ITransport<
 #endif
 {
 #if NET7_0_OR_GREATER
-    static abstract T Create(string host, string apiKey);
+    static abstract T Create(string host, string apiKey, ILoggerFactory? loggerFactory = null);
 #elif NET6_0
-    static T Create(string host, string apiKey) => PineconeClient.CreateTransport<T>(host, apiKey);
+    static T Create(string host, string apiKey, ILoggerFactory? loggerFactory = null) => PineconeClient.CreateTransport<T>(host, apiKey, loggerFactory);
 #endif
 
     Task<IndexStats> DescribeStats(MetadataMap? filter = null, CancellationToken ct = default);

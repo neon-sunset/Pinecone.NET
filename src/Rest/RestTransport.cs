@@ -3,23 +3,29 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Encodings.Web;
 using CommunityToolkit.Diagnostics;
+using Microsoft.Extensions.Http.Logging;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Pinecone.Rest;
 
 public readonly record struct RestTransport : ITransport<RestTransport>
 {
     private readonly HttpClient Http;
+    private readonly ILogger Logger;
 
-    public RestTransport(string host, string apiKey)
+    public RestTransport(string host, string apiKey, ILoggerFactory? loggerFactory)
     {
         Guard.IsNotNullOrWhiteSpace(host);
         Guard.IsNotNullOrWhiteSpace(apiKey);
 
-        Http = new HttpClient { BaseAddress = new($"https://{host}") };
+        var httpClientLogger = loggerFactory?.CreateLogger<HttpClient>() ?? (ILogger)NullLogger.Instance;
+        Http = new HttpClient(new LoggingHttpMessageHandler(httpClientLogger) { InnerHandler = new HttpClientHandler() }) { BaseAddress = new($"https://{host}") };
         Http.DefaultRequestHeaders.Add(Constants.RestApiKey, apiKey);
+        Logger = loggerFactory?.CreateLogger<RestTransport>() ?? (ILogger)NullLogger.Instance;
     }
 
-    public static RestTransport Create(string host, string apiKey) => new(host, apiKey);
+    public static RestTransport Create(string host, string apiKey, ILoggerFactory? loggerFactory) => new(host, apiKey, loggerFactory);
 
     public async Task<IndexStats> DescribeStats(MetadataMap? filter = null, CancellationToken ct = default)
     {
@@ -28,7 +34,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
             .PostAsJsonAsync("/describe_index_stats", request, RestTransportContext.Default.DescribeStatsRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode(ct).ConfigureAwait(false);
+        await response.CheckStatusCode(Logger, "Describe stats", ct).ConfigureAwait(false);
         return await response.Content
             .ReadFromJsonAsync(RestTransportContext.Default.IndexStats, ct)
             .ConfigureAwait(false) ?? ThrowHelpers.JsonException<IndexStats>();
@@ -47,8 +53,9 @@ public readonly record struct RestTransport : ITransport<RestTransport>
     {
         if (id is null && values is null && sparseValues is null)
         {
-            ThrowHelper.ThrowArgumentException(
-                "At least one of the following parameters must be non-null: id, values, sparseValues");
+            var errorMessage = "At least one of the following parameters must be non-null: id, values, sparseValues.";
+            Logger.OperationFailed("Query", errorMessage);
+            ThrowHelper.ThrowArgumentException(errorMessage);
         }
 
         var request = new QueryRequest
@@ -67,7 +74,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
             .PostAsJsonAsync("/query", request, RestTransportContext.Default.QueryRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode(ct).ConfigureAwait(false);
+        await response.CheckStatusCode(Logger, "Query", ct).ConfigureAwait(false);
         return (await response.Content
             .ReadFromJsonAsync(RestTransportContext.Default.QueryResponse, ct)
             .ConfigureAwait(false))
@@ -86,7 +93,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
             .PostAsJsonAsync("/vectors/upsert", request, RestTransportContext.Default.UpsertRequest, ct)
             .ConfigureAwait(false);
 
-        await response.CheckStatusCode(ct).ConfigureAwait(false);
+        await response.CheckStatusCode(Logger, "Upsert", ct).ConfigureAwait(false);
         return (await response.Content
             .ReadFromJsonAsync(RestTransportContext.Default.UpsertResponse, ct)
             .ConfigureAwait(false)).UpsertedCount;
@@ -100,7 +107,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         var response = await Http
             .PostAsJsonAsync("/vectors/update", request, RestTransportContext.Default.UpdateRequest, ct)
             .ConfigureAwait(false);
-        await response.CheckStatusCode(ct).ConfigureAwait(false);
+        await response.CheckStatusCode(Logger, "Update", ct).ConfigureAwait(false);
     }
 
     public async Task Update(
@@ -113,8 +120,9 @@ public readonly record struct RestTransport : ITransport<RestTransport>
     {
         if (values is null && sparseValues is null && metadata is null)
         {
-            ThrowHelper.ThrowArgumentException(
-                "At least one of the following parameters must be non-null: values, sparseValues, metadata");
+            var errorMessage = "At least one of the following parameters must be non-null: values, sparseValues, metadata.";
+            Logger.OperationFailed("Update", errorMessage);
+            ThrowHelper.ThrowArgumentException(errorMessage);
         }
 
         var request = new UpdateRequest
@@ -129,7 +137,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         var response = await Http
             .PostAsJsonAsync("/vectors/update", request, RestTransportContext.Default.UpdateRequest, ct)
             .ConfigureAwait(false);
-        await response.CheckStatusCode(ct).ConfigureAwait(false);
+        await response.CheckStatusCode(Logger, "Update", ct).ConfigureAwait(false);
     }
 
     public async Task<Dictionary<string, Vector>> Fetch(
@@ -138,6 +146,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         using var enumerator = ids.GetEnumerator();
         if (!enumerator.MoveNext())
         {
+            Logger.OperationFailed("Fetch", "ids must contain at least one id.");
             ThrowHelper.ThrowArgumentException(nameof(ids), "Must contain at least one id");
         }
 
@@ -179,7 +188,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         var response = await Http
             .PostAsJsonAsync("/vectors/delete", request, RestTransportContext.Default.DeleteRequest, ct)
             .ConfigureAwait(false);
-        await response.CheckStatusCode(ct).ConfigureAwait(false);
+        await response.CheckStatusCode(Logger, "Delete", ct).ConfigureAwait(false);
     }
 
     public void Dispose() => Http.Dispose();
