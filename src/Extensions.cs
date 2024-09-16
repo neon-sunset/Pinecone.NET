@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -8,18 +7,16 @@ namespace Pinecone;
 internal static class Extensions
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static ValueTask CheckStatusCode(
-        this HttpResponseMessage response, ILogger logger, string operationName, CancellationToken ct, [CallerMemberName] string requestName = "")
+    internal static ValueTask CheckStatusCode(this HttpResponseMessage response, CancellationToken ct, [CallerMemberName] string requestName = "")
     {
 #if NETSTANDARD2_0
-        return response.IsSuccessStatusCode ? default : ThrowOnFailedResponse(response, requestName, logger, operationName, ct);
+        return response.IsSuccessStatusCode ? default : ThrowOnFailedResponse(response, requestName, ct);
 #else
-        return response.IsSuccessStatusCode ? ValueTask.CompletedTask : ThrowOnFailedResponse(response, requestName, logger, operationName, ct);
+        return response.IsSuccessStatusCode ? ValueTask.CompletedTask : ThrowOnFailedResponse(response, requestName, ct);
 #endif
 
         [DoesNotReturn, StackTraceHidden]
-        static async ValueTask ThrowOnFailedResponse(
-            HttpResponseMessage response, string requestName, ILogger logger, string operationName, CancellationToken ct)
+        static async ValueTask ThrowOnFailedResponse(HttpResponseMessage response, string requestName, CancellationToken ct)
         {
             var message = $"{requestName} request has failed. " +
 #if NETSTANDARD2_0
@@ -27,8 +24,6 @@ internal static class Extensions
 #else
                 $"Code: {response.StatusCode}. Message: {await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false)}";
 #endif
-            logger.OperationFailed(operationName, message);
-
             throw new HttpRequestException(message);
         }
     }

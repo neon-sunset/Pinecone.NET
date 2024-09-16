@@ -1,8 +1,6 @@
-using CommunityToolkit.Diagnostics;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Pinecone.Grpc;
 
@@ -14,17 +12,14 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 
     private readonly VectorService.VectorServiceClient Grpc;
 
-    private readonly ILogger Logger;
-
     public GrpcTransport(string host, string apiKey, ILoggerFactory? loggerFactory)
     {
-        Guard.IsNotNullOrWhiteSpace(host);
-        Guard.IsNotNullOrWhiteSpace(apiKey);
+        ThrowHelpers.CheckNullOrWhiteSpace(host);
+        ThrowHelpers.CheckNullOrWhiteSpace(apiKey);
 
         Auth = new() { { Constants.GrpcApiKey, apiKey } };
         Channel = GrpcChannel.ForAddress($"https://{host}", new GrpcChannelOptions { LoggerFactory = loggerFactory });
         Grpc = new(Channel);
-        Logger = loggerFactory?.CreateLogger<GrpcTransport>() ?? (ILogger)NullLogger.Instance;
     }
 
     public static GrpcTransport Create(string host, string apiKey, ILoggerFactory? loggerFactory) => new(host, apiKey, loggerFactory);
@@ -73,9 +68,8 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         }
         else
         {
-            var errorMessage = "At least one of the following parameters must be non-null: id, values, sparseValues.";
-            Logger.OperationFailed("Query", errorMessage);
-            ThrowHelper.ThrowArgumentException(errorMessage);
+            ThrowHelpers.ArgumentException(
+                "At least one of the following parameters must be non-null: id, values, sparseValues.");
         }
 
         using var call = Grpc.QueryAsync(request, Auth, cancellationToken: ct);
@@ -119,9 +113,8 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
     {
         if (values is null && sparseValues is null && metadata is null)
         {
-            var errorMessage = "At least one of the following parameters must be non-null: values, sparseValues, metadata.";
-            Logger.OperationFailed("Update", errorMessage);
-            ThrowHelper.ThrowArgumentException(errorMessage);
+            ThrowHelpers.ArgumentException(
+                "At least one of the following parameters must be non-null: values, sparseValues, metadata.");
         }
 
         var request = new UpdateRequest
