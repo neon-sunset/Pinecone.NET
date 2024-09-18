@@ -7,8 +7,7 @@ public abstract class DataTestFixtureBase : IAsyncLifetime
 {
     public const int MaxAttemptCount = 100;
     public const int DelayInterval = 300;
-
-    protected abstract string IndexName { get; }
+    public abstract string IndexName { get; }
 
     public PineconeClient Pinecone { get; private set; } = null!;
 

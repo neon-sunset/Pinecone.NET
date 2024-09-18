@@ -1,7 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
-using CommunityToolkit.Diagnostics;
+using System.Runtime.CompilerServices;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Pinecone;
 
@@ -52,10 +53,26 @@ public sealed partial record Index<
 public sealed partial record Index<TTransport> : IDisposable
     where TTransport : ITransport<TTransport>
 {
+#if NET6_0_OR_GREATER
+    const int BatchParallelism = 20;
+
+    readonly ILogger? Logger;
+#endif
+
+    /// <summary>
+    /// Creates a new instance of the <see cref="Index{TTransport}" /> class.
+    /// </summary>
+    /// <param name="loggerFactory">The logger factory to be used.</param>
+    public Index(ILoggerFactory? loggerFactory = null)
+    {
+#if NET6_0_OR_GREATER
+        Logger = loggerFactory?.CreateLogger<Index<TTransport>>();
+#endif
+    }
+
     /// <summary>
     /// The transport layer.
     /// </summary>
-    [JsonIgnore]
     public required TTransport Transport { private get; init; }
 
     /// <summary>
@@ -143,22 +160,26 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="vectors">A collection of <see cref="Vector"/> objects to upsert.</param>
     /// <param name="indexNamespace">Namespace to write the vector to. If no namespace is provided, the operation applies to all namespaces.</param>
     /// <returns>The number of vectors upserted.</returns>
+    /// <exception cref="ParallelUpsertException">
+    /// Thrown when the countable sequence of vectors is above the threshold batch size which initiates automatic parallel upserting
+    /// and one or more batch upsert operations have failed.
+    /// The exception contains the number of successfully upserted vectors, the IDs and exceptions of the batches that failed to upsert.
+    /// This applies to .NET 6.0 or newer versions of this library.
+    /// </exception>
     public Task<uint> Upsert(
         IEnumerable<Vector> vectors,
         string? indexNamespace = null,
         CancellationToken ct = default)
     {
 #if NET6_0_OR_GREATER
-        const int batchSize = 100;
         const int parallelism = 20;
-        const int threshold = 400;
+        var batchSize = GetBatchSize(); 
 
-        if (vectors.TryGetNonEnumeratedCount(out var count) && count >= threshold)
+        if (vectors.TryGetNonEnumeratedCount(out var count) && count > batchSize)
         {
             return Upsert(vectors, batchSize, parallelism, indexNamespace, ct);
         }
 #endif
-
         return Transport.Upsert(vectors, indexNamespace, ct);
     }
 
@@ -171,6 +192,10 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="parallelism">The maximum number of batches to process in parallel.</param>
     /// <param name="indexNamespace">Namespace to write the vector to. If no namespace is provided, the operation applies to all namespaces.</param>
     /// <returns>The number of vectors upserted.</returns>
+    /// <exception cref="ParallelUpsertException">
+    /// Thrown when one or more batch upsert operations fail.
+    /// The exception contains the number of successfully upserted vectors, the IDs and exceptions of the batches that failed to upsert.
+    /// </exception>
     public async Task<uint> Upsert(
         IEnumerable<Vector> vectors,
         int batchSize,
@@ -178,29 +203,55 @@ public sealed partial record Index<TTransport> : IDisposable
         string? indexNamespace = null,
         CancellationToken ct = default)
     {
-        Guard.IsGreaterThan(batchSize, 0);
-        Guard.IsGreaterThan(parallelism, 0);
+        ThrowHelpers.CheckGreaterThan(batchSize, 0);
+        ThrowHelpers.CheckGreaterThan(parallelism, 0);
 
-        if (parallelism is 1)
-        {
-            return await Transport.Upsert(vectors, indexNamespace, ct);
-        }
-        
         var upserted = 0u;
         var batches = vectors.Chunk(batchSize);
         var options = new ParallelOptions
         {
-            CancellationToken = ct,
+            // We are intentionally not assigning the CancellationToken here
+            // to allow batch exception aggregation logic to execute.
+            // Otherwise, avoiding the race condition where the token is raised
+            // before any of the workers reaches the catch block would be
+            // tricky without making the code ugly.
             MaxDegreeOfParallelism = parallelism
         };
+        
+        var exceptions = (ConcurrentStack<Exception>?)null;
+        var failedVectorBatches = (ConcurrentStack<string[]>?)null;
 
-        // TODO: Do we need to provide more specific cancellation exception that
-        // includes the number of upserted vectors?
-        await Parallel.ForEachAsync(batches, options, async (batch, ct) =>
+        Logger?.ParallelOperationStarted(batchSize, parallelism);
+        await Parallel.ForEachAsync(batches, options, async (batch, _) =>
         {
-            Interlocked.Add(ref upserted, await Transport.Upsert(batch, indexNamespace, ct));
+            try
+            {
+                Interlocked.Add(ref upserted, await Transport.Upsert(batch, indexNamespace, ct));
+            }
+            catch (Exception ex)
+            {
+                if (exceptions is null) Interlocked.CompareExchange(ref exceptions, [], null);
+                exceptions.Push(ex);
+
+                if (failedVectorBatches is null) Interlocked.CompareExchange(ref failedVectorBatches, [], null);
+                failedVectorBatches.Push(batch.Select(v => v.Id).ToArray());
+            }
         });
 
+        if (exceptions != null)
+        {
+            var message = "One or more exceptions have occurred. " +
+                $"Successfully upserted {upserted} vectors. Batches failed: {exceptions.Count}.";
+
+            Logger?.ParallelOperationFailed(message);
+            throw new ParallelUpsertException(
+                upserted,
+                message,
+                failedVectorBatches!.SelectMany(b => b).ToArray(),
+                [..exceptions]);
+        }
+
+        Logger?.ParallelOperationCompleted($"Upserted {upserted} vectors.");
         return upserted;
     }
 #endif
@@ -244,19 +295,23 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="ids">IDs of vectors to fetch.</param>
     /// <param name="indexNamespace">Namespace to fetch vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
     /// <returns>A dictionary containing vector IDs and the corresponding <see cref="Vector"/> objects containing the vector information.</returns>
+    /// <exception cref="ParallelFetchException">
+    /// Thrown when the countable sequence of IDs is above the threshold batch size which initiates automatic parallel fetching
+    /// and one or more batch fetch operations have failed.
+    /// The exception contains the successfully fetched vectors and the inner batch fetch exceptions that occurred.
+    /// This applies to .NET 6.0 or newer versions of this library.
+    /// </exception>
     public Task<Dictionary<string, Vector>> Fetch(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
 #if NET6_0_OR_GREATER
-        const int batchSize = 200;
         const int parallelism = 20;
-        const int threshold = 600;
+        var batchSize = GetBatchSize();
 
-        if (ids.TryGetNonEnumeratedCount(out var count) && count >= threshold)
+        if (ids.TryGetNonEnumeratedCount(out var count) && count > batchSize)
         {
             return Fetch(ids, batchSize, parallelism, indexNamespace, ct);
         }
 #endif
-
         return Transport.Fetch(ids, indexNamespace, ct);
     }
 
@@ -269,6 +324,10 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="parallelism">The maximum number of batches to process in parallel.</param>
     /// <param name="indexNamespace">Namespace to fetch vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
     /// <returns>A dictionary containing vector IDs and the corresponding <see cref="Vector"/> objects containing the vector information.</returns>
+    /// <exception cref="ParallelFetchException">
+    /// Thrown when one or more batch fetch operations fail.
+    /// The exception contains the successfully fetched vectors and the inner batch fetch exceptions that occurred.
+    /// </exception>
     public async Task<Dictionary<string, Vector>> Fetch(
         IEnumerable<string> ids,
         int batchSize,
@@ -276,28 +335,45 @@ public sealed partial record Index<TTransport> : IDisposable
         string? indexNamespace = null,
         CancellationToken ct = default)
     {
-        Guard.IsGreaterThan(batchSize, 0);
-        Guard.IsGreaterThan(parallelism, 0);
-
-        if (parallelism is 1)
-        {
-            return await Transport.Fetch(ids, indexNamespace, ct);
-        }
+        ThrowHelpers.CheckGreaterThan(batchSize, 0);
+        ThrowHelpers.CheckGreaterThan(parallelism, 0);
 
         var fetched = new ConcurrentStack<Dictionary<string, Vector>>();
+        var exceptions = (ConcurrentStack<Exception>?)null;
         var batches = ids.Chunk(batchSize);
         var options = new ParallelOptions
         {
-            CancellationToken = ct,
+            // We are intentionally not assigning the CancellationToken here.
+            // See the Upsert method for more information.
             MaxDegreeOfParallelism = parallelism
         };
 
-        await Parallel.ForEachAsync(batches, options, async (batch, ct) =>
+        Logger?.ParallelOperationStarted(batchSize, parallelism);
+        await Parallel.ForEachAsync(batches, options, async (batch, _) =>
         {
-            fetched.Push(await Transport.Fetch(batch, indexNamespace, ct));
+            try
+            {
+                fetched.Push(await Transport.Fetch(batch, indexNamespace, ct));
+            }
+            catch (Exception ex)
+            {
+                if (exceptions is null) Interlocked.CompareExchange(ref exceptions, [], null);
+                exceptions.Push(ex);
+            }
         });
 
-        return new(fetched.SelectMany(batch => batch));
+        var merged = new Dictionary<string, Vector>(fetched.SelectMany(batch => batch));
+        if (exceptions != null)
+        {
+            var message = "One or more exceptions have occurred. " +
+                $"Successfully fetched {merged.Count} vectors. Batches failed: {exceptions.Count}.";
+
+            Logger?.ParallelOperationFailed(message);
+            throw new ParallelFetchException(merged, message, [..exceptions]);
+        }
+
+        Logger?.ParallelOperationCompleted($"Fetched {merged.Count} vectors.");
+        return merged;
     }
 #endif
 
@@ -306,9 +382,66 @@ public sealed partial record Index<TTransport> : IDisposable
     /// </summary>
     /// <param name="ids"></param>
     /// <param name="indexNamespace">Namespace to delete vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
-    public Task Delete(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
+    public async Task Delete(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Transport.Delete(ids, indexNamespace, ct);
+#if NET6_0_OR_GREATER
+        // Pinecone API limits delete batches to 1000 IDs each.
+        // This presents an opportunity to address both the restriction and
+        // improve the performance of the operation by sending batches in parallel.
+        const int maxBatchSize = 1000;
+
+        if (ids.TryGetNonEnumeratedCount(out var count) && count <= maxBatchSize)
+        {
+            await Transport.Delete(ids, indexNamespace, ct);
+            return;
+        }
+
+        var deleted = 0u;
+        var batches = ids.Chunk(maxBatchSize);
+        var options = new ParallelOptions
+        {
+            // We are intentionally not assigning the CancellationToken here.
+            // See the Upsert method for more information.
+            MaxDegreeOfParallelism = BatchParallelism
+        };
+
+        var exceptions = (ConcurrentStack<Exception>?)null;
+        var failedVectorBatches = (ConcurrentStack<string[]>?)null;
+
+        Logger?.ParallelOperationStarted(maxBatchSize, BatchParallelism);
+        await Parallel.ForEachAsync(batches, options, async (batch, _) =>
+        {
+            try
+            {
+                await Transport.Delete(batch, indexNamespace, ct);
+                Interlocked.Add(ref deleted, (uint)batch.Length);
+            }
+            catch (Exception ex)
+            {
+                if (exceptions is null) Interlocked.CompareExchange(ref exceptions, [], null);
+                exceptions.Push(ex);
+
+                if (failedVectorBatches is null) Interlocked.CompareExchange(ref failedVectorBatches, [], null);
+                failedVectorBatches.Push(batch);
+            }
+        });
+
+        if (exceptions != null)
+        {
+            var message = "One or more exceptions have occurred." +
+                $"Successfully deleted {deleted} vectors. Batches failed: {exceptions.Count}.";
+
+            Logger?.ParallelOperationFailed(message);
+            throw new ParallelDeleteException(
+                message,
+                failedVectorBatches!.SelectMany(b => b).ToArray(),
+                [..exceptions]);
+        }
+
+        Logger?.ParallelOperationCompleted($"Deleted {deleted} vectors.");
+#else
+        await Transport.Delete(ids, indexNamespace, ct);
+#endif
     }
 
     /// <summary>
@@ -332,4 +465,40 @@ public sealed partial record Index<TTransport> : IDisposable
 
     /// <inheritdoc />
     public void Dispose() => Transport.Dispose();
+
+#if NET6_0_OR_GREATER
+    private int GetBatchSize() => Dimension switch
+    {
+        // Targets < 2MiB of data per batch with some safety margin for metadata.
+        <= 386 => 800,
+        <= 768 => 400,
+        <= 1536 => 200,
+        <= 3072 => 100,
+        <= 6144 => 50,
+        <= 12288 => 25,
+        _ => 10
+    };
+#endif
+}
+
+static partial class IndexLoggerExtensions
+{
+    [LoggerMessage(1, LogLevel.Information, "Parallel {operation} operation started. Batch size: {batchSize} Parallelism: {parallelism}")]
+    public static partial void ParallelOperationStarted(
+        this ILogger logger,
+        int batchSize,
+        int parallelism,
+        [CallerMemberName] string operation = "");
+    
+    [LoggerMessage(2, LogLevel.Information, "Parallel {operation} operation completed. {outcome}")]
+    public static partial void ParallelOperationCompleted(
+        this ILogger logger,
+        string outcome,
+        [CallerMemberName] string operation = "");
+    
+    [LoggerMessage(3, LogLevel.Error, "Parallel {operation} operation failed. {message}")]
+    public static partial void ParallelOperationFailed(
+        this ILogger logger,
+        string message,
+        [CallerMemberName] string operation = "");
 }

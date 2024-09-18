@@ -11,7 +11,7 @@ public class PodBasedDataTests(PodBasedDataTests.PodBasedDataTestFixture fixture
 {
     public class PodBasedDataTestFixture : DataTestFixtureBase
     {
-        protected override string IndexName => "pod-data-tests";
+        public override string IndexName => "pod-data-tests";
 
         protected override async Task CreateIndexAndWait()
         {

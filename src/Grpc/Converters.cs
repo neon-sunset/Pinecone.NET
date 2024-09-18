@@ -1,7 +1,5 @@
-using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using CommunityToolkit.Diagnostics;
 using Google.Protobuf.Collections;
 using Google.Protobuf.WellKnownTypes;
 
@@ -32,7 +30,7 @@ internal static class Converters
             bool boolean => Value.ForBool(boolean),
             MetadataMap nested => Value.ForStruct(nested.ToProtoStruct()),
             IEnumerable<MetadataValue> list => Value.ForList(list.Select(v => v.ToProtoValue()).ToArray()),
-            _ => ThrowHelper.ThrowArgumentException<Value>($"Unsupported metadata type: {source.Inner!.GetType()}")
+            _ => ThrowHelpers.ArgumentException<Value>($"Unsupported metadata type: {source.Inner!.GetType()}")
         };
     }
 
@@ -122,7 +120,7 @@ internal static class Converters
             Value.KindOneofCase.BoolValue => new(source.BoolValue),
             Value.KindOneofCase.StructValue => new(source.StructValue.Fields.ToPublicType()),
             Value.KindOneofCase.ListValue => new(source.ListValue.Values.Select(v => v.ToPublicType()).ToArray()),
-            _ => ThrowHelper.ThrowArgumentException<MetadataValue>($"Unsupported metadata type: {source.KindCase}")
+            _ => ThrowHelpers.ArgumentException<MetadataValue>($"Unsupported metadata type: {source.KindCase}")
         };
     }
 

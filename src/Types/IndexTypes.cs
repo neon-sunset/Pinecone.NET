@@ -31,7 +31,7 @@ public record IndexDetails
     /// <summary>
     /// Additional information about the index.
     /// </summary>
-    public required IndexSpec Spec { get; init;}
+    public required IndexSpec Spec { get; init; }
 
     /// <summary>
     /// The current status of the index.
@@ -199,7 +199,7 @@ public record IndexStats
     /// The fullness of the index, regardless of whether a metadata filter expression was passed.
     /// </summary>
     public required float IndexFullness { get; init; }
-    
+
     /// <summary>
     /// Total number of vectors stored in the index.
     /// </summary>
@@ -220,4 +220,38 @@ public readonly record struct IndexNamespace
     /// Number of vectors stored in the namespace.
     /// </summary>
     public required uint VectorCount { get; init; }
+}
+
+public class ParallelOperationException<T>(
+    string message,
+    T partialResult,
+    Exception[] exceptions
+) : AggregateException(message, exceptions)
+{
+    public T PartialResult { get; } = partialResult;
+}
+
+public class ParallelUpsertException(
+    uint upserted,
+    string message,
+    string[] failedBatchVectorIds,
+    Exception[] exceptions
+) : ParallelOperationException<uint>(message, upserted, exceptions)
+{
+    public string[] FailedBatchVectorIds { get; } = failedBatchVectorIds;
+}
+
+public class ParallelFetchException(
+    Dictionary<string, Vector> fetched,
+    string message,
+    Exception[] exceptions
+) : ParallelOperationException<Dictionary<string, Vector>>(message, fetched, exceptions);
+
+public class ParallelDeleteException(
+    string message,
+    string[] failedBatchVectorIds,
+    Exception[] exceptions
+) : AggregateException(message, exceptions)
+{
+    public string[] FailedBatchVectorIds { get; } = failedBatchVectorIds;
 }

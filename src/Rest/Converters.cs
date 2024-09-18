@@ -2,7 +2,6 @@ using System.Buffers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using CommunityToolkit.Diagnostics;
 
 namespace Pinecone.Rest;
 
@@ -13,7 +12,7 @@ public class IndexNamespaceArrayConverter : JsonConverter<IndexNamespace[]>
     {
         if (reader.TokenType != JsonTokenType.StartObject)
         {
-            ThrowHelper.ThrowFormatException("Expected object element");
+            ThrowHelpers.FormatException("Expected object element");
         }
 
         // TODO: Remove intermediate allocation
@@ -23,7 +22,7 @@ public class IndexNamespaceArrayConverter : JsonConverter<IndexNamespace[]>
         {
             if (reader.TokenType != JsonTokenType.PropertyName)
             {
-                ThrowHelper.ThrowFormatException("Expected property name");
+                ThrowHelpers.FormatException("Expected property name");
             }
 
             ReadOnlySpan<byte> nameSpan;
@@ -41,20 +40,20 @@ public class IndexNamespaceArrayConverter : JsonConverter<IndexNamespace[]>
             reader.Read();
             if (reader.TokenType != JsonTokenType.StartObject)
             {
-                ThrowHelper.ThrowFormatException("Expected object element");
+                ThrowHelpers.FormatException("Expected object element");
             }
 
             while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
             {
                 if (reader.TokenType != JsonTokenType.PropertyName || !reader.ValueTextEquals("vectorCount"u8))
                 {
-                    ThrowHelper.ThrowFormatException("Expected 'vectorCount' property");
+                    ThrowHelpers.FormatException("Expected 'vectorCount' property");
                 }
 
                 reader.Read();
                 if (reader.TokenType != JsonTokenType.Number)
                 {
-                    ThrowHelper.ThrowFormatException("Expected number value");
+                    ThrowHelpers.FormatException("Expected number value");
                 }
 
 #if NET6_0_OR_GREATER
@@ -103,7 +102,7 @@ public class MetadataValueConverter : JsonConverter<MetadataValue>
             JsonTokenType.Number => reader.GetDouble(),
             JsonTokenType.StartArray => ReadArray(ref reader),
             JsonTokenType.StartObject => ReadMap(ref reader),
-            _ => ThrowHelper.ThrowFormatException<MetadataValue>($"Unexpected token type {reader.TokenType}")
+            _ => ThrowHelpers.FormatException<MetadataValue>($"Unexpected token type {reader.TokenType}")
         };
     }
 
@@ -130,10 +129,8 @@ public class MetadataValueConverter : JsonConverter<MetadataValue>
             case MetadataValue[] a: WriteArray(writer, a); break;
             case IEnumerable<MetadataValue> e: WriteEnumerable(writer, e); break;
             case MetadataMap m: WriteMap(writer, m); break;
-            default:
-                ThrowHelper.ThrowArgumentOutOfRangeException(
-                    nameof(value.Inner), $"Unknown MetadataValue of type {value.Inner.GetType()}");
-                break;
+            default: throw new ArgumentException(
+                nameof(value.Inner), $"Unknown MetadataValue of type {value.Inner.GetType()}");
         }
     }
 
