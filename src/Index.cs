@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Pinecone;
@@ -52,18 +53,21 @@ public sealed partial record Index<
 public sealed partial record Index<TTransport> : IDisposable
     where TTransport : ITransport<TTransport>
 {
-    private readonly ILogger? Logger;
+#if NET6_0_OR_GREATER
+    const int BatchParallelism = 20;
+
+    readonly ILogger? Logger;
+#endif
 
     /// <summary>
     /// Creates a new instance of the <see cref="Index{TTransport}" /> class.
     /// </summary>
     /// <param name="loggerFactory">The logger factory to be used.</param>
-    public Index(ILoggerFactory? loggerFactory)
+    public Index(ILoggerFactory? loggerFactory = null)
     {
-        if (loggerFactory != null)
-        {
-            Logger = loggerFactory.CreateLogger<Index<TTransport>>();
-        }
+#if NET6_0_OR_GREATER
+        Logger = loggerFactory?.CreateLogger<Index<TTransport>>();
+#endif
     }
 
     /// <summary>
@@ -215,7 +219,7 @@ public sealed partial record Index<TTransport> : IDisposable
         };
         
         var exceptions = (ConcurrentStack<Exception>?)null;
-        var failedBatchVectors = (ConcurrentStack<string[]>?)null;
+        var failedVectorBatches = (ConcurrentStack<string[]>?)null;
 
         Logger?.ParallelOperationStarted(batchSize, parallelism);
         await Parallel.ForEachAsync(batches, options, async (batch, _) =>
@@ -229,8 +233,8 @@ public sealed partial record Index<TTransport> : IDisposable
                 if (exceptions is null) Interlocked.CompareExchange(ref exceptions, [], null);
                 exceptions.Push(ex);
 
-                if (failedBatchVectors is null) Interlocked.CompareExchange(ref failedBatchVectors, [], null);
-                failedBatchVectors.Push(batch.Select(v => v.Id).ToArray());
+                if (failedVectorBatches is null) Interlocked.CompareExchange(ref failedVectorBatches, [], null);
+                failedVectorBatches.Push(batch.Select(v => v.Id).ToArray());
             }
         });
 
@@ -243,7 +247,7 @@ public sealed partial record Index<TTransport> : IDisposable
             throw new ParallelUpsertException(
                 upserted,
                 message,
-                failedBatchVectors!.SelectMany(b => b).ToArray(),
+                failedVectorBatches!.SelectMany(b => b).ToArray(),
                 [..exceptions]);
         }
 
@@ -378,11 +382,66 @@ public sealed partial record Index<TTransport> : IDisposable
     /// </summary>
     /// <param name="ids"></param>
     /// <param name="indexNamespace">Namespace to delete vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
-    public Task Delete(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
+    public async Task Delete(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
-        // TODO: Parallelize too, maybe consolidate parallelization batching logic to a helper method.
-        // Current limit: 1000 IDs per request.
-        return Transport.Delete(ids, indexNamespace, ct);
+#if NET6_0_OR_GREATER
+        // Pinecone API limits delete batches to 1000 IDs each.
+        // This presents an opportunity to address both the restriction and
+        // improve the performance of the operation by sending batches in parallel.
+        const int maxBatchSize = 1000;
+
+        if (ids.TryGetNonEnumeratedCount(out var count) && count <= maxBatchSize)
+        {
+            await Transport.Delete(ids, indexNamespace, ct);
+            return;
+        }
+
+        var deleted = 0u;
+        var batches = ids.Chunk(maxBatchSize);
+        var options = new ParallelOptions
+        {
+            // We are intentionally not assigning the CancellationToken here.
+            // See the Upsert method for more information.
+            MaxDegreeOfParallelism = BatchParallelism
+        };
+
+        var exceptions = (ConcurrentStack<Exception>?)null;
+        var failedVectorBatches = (ConcurrentStack<string[]>?)null;
+
+        Logger?.ParallelOperationStarted(maxBatchSize, BatchParallelism);
+        await Parallel.ForEachAsync(batches, options, async (batch, _) =>
+        {
+            try
+            {
+                await Transport.Delete(batch, indexNamespace, ct);
+                Interlocked.Add(ref deleted, (uint)batch.Length);
+            }
+            catch (Exception ex)
+            {
+                if (exceptions is null) Interlocked.CompareExchange(ref exceptions, [], null);
+                exceptions.Push(ex);
+
+                if (failedVectorBatches is null) Interlocked.CompareExchange(ref failedVectorBatches, [], null);
+                failedVectorBatches.Push(batch);
+            }
+        });
+
+        if (exceptions != null)
+        {
+            var message = "One or more exceptions have occurred." +
+                $"Successfully deleted {deleted} vectors. Batches failed: {exceptions.Count}.";
+
+            Logger?.ParallelOperationFailed(message);
+            throw new ParallelDeleteException(
+                message,
+                failedVectorBatches!.SelectMany(b => b).ToArray(),
+                [..exceptions]);
+        }
+
+        Logger?.ParallelOperationCompleted($"Deleted {deleted} vectors.");
+#else
+        await Transport.Delete(ids, indexNamespace, ct);
+#endif
     }
 
     /// <summary>

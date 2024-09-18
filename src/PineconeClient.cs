@@ -13,8 +13,8 @@ namespace Pinecone;
 /// </summary>
 public sealed class PineconeClient : IDisposable
 {
-    private readonly HttpClient Http;
-    private readonly ILoggerFactory? LoggerFactory;
+    readonly HttpClient Http;
+    readonly ILoggerFactory? LoggerFactory;
 
     /// <summary>
     /// Creates a new instance of the <see cref="PineconeClient" /> class.
@@ -39,14 +39,17 @@ public sealed class PineconeClient : IDisposable
 
         if (loggerFactory != null)
         {
-            Http = new(new LoggingHttpMessageHandler(loggerFactory.CreateLogger<HttpClient>())
-            { InnerHandler = new HttpClientHandler() })
-            { BaseAddress = baseUrl };
+            var handler = new LoggingHttpMessageHandler(
+                loggerFactory.CreateLogger<HttpClient>(),
+                Constants.RedactApiKeyOptions)
+            { InnerHandler = new HttpClientHandler() };
+
+            Http = new(handler) { BaseAddress = baseUrl };
             LoggerFactory = loggerFactory;
         }
 
         Http ??= new() { BaseAddress = baseUrl };
-        Http.DefaultRequestHeaders.Add("Api-Key", apiKey);
+        Http.AddPineconeHeaders(apiKey);
     }
 
     /// <summary>
@@ -60,12 +63,8 @@ public sealed class PineconeClient : IDisposable
         ThrowHelpers.CheckNullOrWhiteSpace(apiKey);
         ThrowHelpers.CheckNull(client);
 
-        if (!client.DefaultRequestHeaders.Contains("Api-Key"))
-        {
-            client.DefaultRequestHeaders.Add("Api-Key", apiKey);
-        }
-
         Http = client;
+        Http.AddPineconeHeaders(apiKey);
         LoggerFactory = loggerFactory;
     }
 

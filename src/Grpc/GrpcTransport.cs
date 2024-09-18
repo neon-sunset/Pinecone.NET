@@ -1,24 +1,32 @@
 using Grpc.Core;
 using Grpc.Net.Client;
+using Grpc.Net.Client.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Pinecone.Grpc;
 
 public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 {
-    private readonly Metadata Auth;
+    readonly Metadata Metadata;
+    readonly GrpcChannel Channel;
+    readonly VectorService.VectorServiceClient Grpc;
 
-    private readonly GrpcChannel Channel;
-
-    private readonly VectorService.VectorServiceClient Grpc;
-
-    public GrpcTransport(string host, string apiKey, ILoggerFactory? loggerFactory)
+    public GrpcTransport(string host, string apiKey, ILoggerFactory? loggerFactory = null)
     {
         ThrowHelpers.CheckNullOrWhiteSpace(host);
         ThrowHelpers.CheckNullOrWhiteSpace(apiKey);
 
-        Auth = new() { { Constants.GrpcApiKey, apiKey } };
-        Channel = GrpcChannel.ForAddress($"https://{host}", new GrpcChannelOptions { LoggerFactory = loggerFactory });
+        Metadata = new Metadata().WithPineconeProps(apiKey);
+        Channel = GrpcChannel.ForAddress($"dns:///{host}", new()
+        {
+            Credentials = ChannelCredentials.SecureSsl,
+#if NET6_0_OR_GREATER
+            DisposeHttpClient = true,
+            HttpHandler = new SocketsHttpHandler { EnableMultipleHttp2Connections = true },
+#endif
+            ServiceConfig = new() { LoadBalancingConfigs = { new RoundRobinConfig() } },
+            LoggerFactory = loggerFactory
+        });
         Grpc = new(Channel);
     }
 
@@ -32,7 +40,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
             request.Filter = filter.ToProtoStruct();
         }
 
-        using var call = Grpc.DescribeIndexStatsAsync(request, Auth, cancellationToken: ct);
+        using var call = Grpc.DescribeIndexStatsAsync(request, Metadata, cancellationToken: ct);
         
         return (await call.ConfigureAwait(false)).ToPublicType();
     }
@@ -72,7 +80,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
                 "At least one of the following parameters must be non-null: id, values, sparseValues.");
         }
 
-        using var call = Grpc.QueryAsync(request, Auth, cancellationToken: ct);
+        using var call = Grpc.QueryAsync(request, Metadata, cancellationToken: ct);
         var response = await call.ConfigureAwait(false);
 
         var matches = response.Matches;
@@ -90,7 +98,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         var request = new UpsertRequest { Namespace = indexNamespace ?? "" };
         request.Vectors.AddRange(vectors.Select(v => v.ToProtoVector()));
 
-        using var call = Grpc.UpsertAsync(request, Auth, cancellationToken: ct);
+        using var call = Grpc.UpsertAsync(request, Metadata, cancellationToken: ct);
 
         return (await call.ConfigureAwait(false)).UpsertedCount;
     }
@@ -126,7 +134,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         };
         request.Values.OverwriteWith(values);
 
-        using var call = Grpc.UpdateAsync(request, Auth, cancellationToken: ct);
+        using var call = Grpc.UpdateAsync(request, Metadata, cancellationToken: ct);
         _ = await call.ConfigureAwait(false);
     }
 
@@ -139,7 +147,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
             Namespace = indexNamespace ?? ""
         };
 
-        using var call = Grpc.FetchAsync(request, Auth, cancellationToken: ct);
+        using var call = Grpc.FetchAsync(request, Metadata, cancellationToken: ct);
         var response = await call.ConfigureAwait(false);
 
         return response.Vectors.ToDictionary(
@@ -168,7 +176,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 
     private async Task Delete(DeleteRequest request, CancellationToken ct)
     {
-        using var call = Grpc.DeleteAsync(request, Auth, cancellationToken: ct);
+        using var call = Grpc.DeleteAsync(request, Metadata, cancellationToken: ct);
         _ = await call.ConfigureAwait(false);
     }
 

@@ -225,7 +225,8 @@ public readonly record struct IndexNamespace
 public class ParallelOperationException<T>(
     string message,
     T partialResult,
-    Exception[] exceptions) : AggregateException(message, exceptions)
+    Exception[] exceptions
+) : AggregateException(message, exceptions)
 {
     public T PartialResult { get; } = partialResult;
 }
@@ -245,3 +246,12 @@ public class ParallelFetchException(
     string message,
     Exception[] exceptions
 ) : ParallelOperationException<Dictionary<string, Vector>>(message, fetched, exceptions);
+
+public class ParallelDeleteException(
+    string message,
+    string[] failedBatchVectorIds,
+    Exception[] exceptions
+) : AggregateException(message, exceptions)
+{
+    public string[] FailedBatchVectorIds { get; } = failedBatchVectorIds;
+}

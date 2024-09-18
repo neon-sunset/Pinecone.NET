@@ -4,13 +4,12 @@ using System.Text;
 using System.Text.Encodings.Web;
 using Microsoft.Extensions.Http.Logging;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Pinecone.Rest;
 
 public readonly record struct RestTransport : ITransport<RestTransport>
 {
-    private readonly HttpClient Http;
+    readonly HttpClient Http;
 
     public RestTransport(string host, string apiKey, ILoggerFactory? loggerFactory)
     {
@@ -19,13 +18,16 @@ public readonly record struct RestTransport : ITransport<RestTransport>
 
         if (loggerFactory != null)
         {
-            Http = new(new LoggingHttpMessageHandler(loggerFactory.CreateLogger<HttpClient>())
-            { InnerHandler = new HttpClientHandler() })
-            { BaseAddress = new($"https://{host}") };
+            var handler = new LoggingHttpMessageHandler(
+                loggerFactory.CreateLogger<HttpClient>(),
+                Constants.RedactApiKeyOptions)
+            { InnerHandler = new HttpClientHandler() };
+
+            Http = new(handler) { BaseAddress = new($"https://{host}") };
         }
 
-        Http ??= new HttpClient { BaseAddress = new($"https://{host}") };
-        Http.DefaultRequestHeaders.Add(Constants.RestApiKey, apiKey);
+        Http ??= new() { BaseAddress = new($"https://{host}") };
+        Http.AddPineconeHeaders(apiKey);
     }
 
     public static RestTransport Create(string host, string apiKey, ILoggerFactory? loggerFactory) => new(host, apiKey, loggerFactory);
