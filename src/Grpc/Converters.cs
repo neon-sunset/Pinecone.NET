@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Google.Protobuf.Collections;
 using Google.Protobuf.WellKnownTypes;
 
@@ -19,24 +20,21 @@ internal static class Converters
         return protoStruct;
     }
 
-    public static Value ToProtoValue(this MetadataValue source)
+    public static Value ToProtoValue(this MetadataValue source) => source.Inner switch
     {
-        return source.Inner switch
-        {
-            // This is terrible but such is life
-            null => Value.ForNull(),
-            double num => Value.ForNumber(num),
-            string str => Value.ForString(str),
-            bool boolean => Value.ForBool(boolean),
-            MetadataMap nested => Value.ForStruct(nested.ToProtoStruct()),
-            IEnumerable<MetadataValue> list => Value.ForList(list.Select(v => v.ToProtoValue()).ToArray()),
-            _ => ThrowHelpers.ArgumentException<Value>($"Unsupported metadata type: {source.Inner!.GetType()}")
-        };
-    }
+        // This is terrible but such is life
+        null => Value.ForNull(),
+        double num => Value.ForNumber(num),
+        string str => Value.ForString(str),
+        bool boolean => Value.ForBool(boolean),
+        MetadataMap nested => Value.ForStruct(nested.ToProtoStruct()),
+        IEnumerable<MetadataValue> list => Value.ForList(list.Select(v => v.ToProtoValue()).ToArray()),
+        _ => ThrowHelpers.ArgumentException<Value>($"Unsupported metadata type: {source.Inner!.GetType()}")
+    };
 
-    public static global::Vector ToProtoVector(this Vector source)
+    public static Vector ToProtoVector(this Pinecone.Vector source)
     {
-        var protoVector = new global::Vector
+        var protoVector = new Vector
         {
             Id = source.Id,
             SparseValues = source.SparseValues?.ToProtoSparseValues(),
@@ -69,32 +67,29 @@ internal static class Converters
         TotalVectorCount = source.TotalVectorCount
     };
 
-    public static Vector ToPublicType(this global::Vector source)
+    public static Pinecone.Vector ToPublicType(this Vector source) => new()
     {
-        return new Vector
-        {
-            Id = source.Id,
-            Values = source.Values.AsArray(),
-            SparseValues = source.SparseValues?.Indices.Count > 0
-                ? new SparseVector
-                {
-                    Indices = source.SparseValues.Indices.AsArray(),
-                    Values = source.SparseValues.Values.AsArray()
-                }
-                : null,
-            Metadata = source.Metadata?.Fields.ToPublicType()
-        };
-    }
+        Id = source.Id,
+        Values = source.Values.AsMemory(),
+        SparseValues = source.SparseValues?.Indices.Count > 0
+            ? new SparseVector
+            {
+                Indices = source.SparseValues.Indices.AsMemory(),
+                Values = source.SparseValues.Values.AsMemory()
+            }
+            : null,
+        Metadata = source.Metadata?.Fields.ToPublicType()
+    };
 
-    public static ScoredVector ToPublicType(this global::ScoredVector source) => new()
+    public static Pinecone.ScoredVector ToPublicType(this ScoredVector source) => new()
     {
         Id = source.Id,
         Score = source.Score,
-        Values = source.Values.AsArray(),
+        Values = source.Values.AsMemory(),
         SparseValues = source.SparseValues?.Indices.Count > 0 ? new()
         {
-            Indices = source.SparseValues.Indices.AsArray(),
-            Values = source.SparseValues.Values.AsArray()
+            Indices = source.SparseValues.Indices.AsMemory(),
+            Values = source.SparseValues.Values.AsMemory()
         } : null,
         Metadata = source.Metadata?.Fields.ToPublicType()
     };
@@ -123,63 +118,119 @@ internal static class Converters
             _ => ThrowHelpers.ArgumentException<MetadataValue>($"Unsupported metadata type: {source.KindCase}")
         };
     }
-
-    public static T[] AsArray<T>(this RepeatedField<T> source) where T : unmanaged
+    
+#if NET8_0_OR_GREATER
+    // These have to be duplicated because unsafe accessor does not support generics in .NET 8.
+    // This approach is, however, very useful as we completely bypass referencing reflection for NAOT.
+    public static ReadOnlyMemory<float> AsMemory(this RepeatedField<float> source)
     {
-        var buffer = FieldAccessors<T>.GetArray(source);
-        if (buffer.Length != source.Count)
-        {
-            buffer = buffer.AsSpan(0, source.Count).ToArray();
-        }
-
-        return buffer;
+        return ArrayRef(source).AsMemory(0, source.Count);
     }
 
-    public static void OverwriteWith<T>(this RepeatedField<T> target, T[]? source) where T : unmanaged
+    public static void OverwriteWith(this RepeatedField<float> target, ReadOnlyMemory<float>? source)
     {
-        if (source is null) return;
+        if (source is null or { IsEmpty: true }) return;
 
-        FieldAccessors<T>.SetArray(target, source);
-        FieldAccessors<T>.SetCount(target, source.Length);
+        float[] array;
+        int count;
+        if (MemoryMarshal.TryGetArray(source.Value, out var segment)
+            && segment.Offset is 0)
+        {
+            array = segment.Array!;
+            count = segment.Count;
+        }
+        else
+        {
+            array = source.Value.ToArray();
+            count = array.Length;
+        }
+
+        ArrayRef(target) = array;
+        CountRef(target) = count;
+    }
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "array")]
+    static extern ref float[] ArrayRef(RepeatedField<float> instance);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "count")]
+    static extern ref int CountRef(RepeatedField<float> instance);
+
+    public static ReadOnlyMemory<uint> AsMemory(this RepeatedField<uint> source)
+    {
+        return ArrayRef(source).AsMemory(0, source.Count);
+    }
+
+    public static void OverwriteWith(this RepeatedField<uint> target, ReadOnlyMemory<uint>? source)
+    {
+        if (source is null or { IsEmpty: true }) return;
+
+        uint[] array;
+        int count;
+        if (MemoryMarshal.TryGetArray(source.Value, out var segment)
+            && segment.Offset is 0)
+        {
+            array = segment.Array!;
+            count = segment.Count;
+        }
+        else
+        {
+            array = source.Value.ToArray();
+            count = array.Length;
+        }
+
+        ArrayRef(target) = array;
+        CountRef(target) = count;
+    }
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "array")]
+    static extern ref uint[] ArrayRef(RepeatedField<uint> instance);
+    
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "count")]
+    static extern ref int CountRef(RepeatedField<uint> instance);
+#else
+    public static ReadOnlyMemory<T> AsMemory<T>(this RepeatedField<T> source)
+        where T : unmanaged
+    {
+        return FieldAccessors<T>.GetArray(source).AsMemory(0, source.Count);
+    }
+
+    public static void OverwriteWith<T>(this RepeatedField<T> target, ReadOnlyMemory<T>? source)
+        where T : unmanaged
+    {
+        if (source is null or { IsEmpty: true }) return;
+
+        T[] array;
+        int count;
+        if (MemoryMarshal.TryGetArray(source.Value, out var segment)
+            && segment.Offset is 0)
+        {
+            array = segment.Array!;
+            count = segment.Count;
+        }
+        else
+        {
+            array = source.Value.ToArray();
+            count = array.Length;
+        }
+
+        FieldAccessors<T>.SetArray(target, array);
+        FieldAccessors<T>.SetCount(target, count);
     }
 
     private static class FieldAccessors<T> where T : unmanaged
     {
         public static T[] GetArray(RepeatedField<T> instance)
         {
-#if NET8_0_OR_GREATER
-            if (instance is RepeatedField<float> floatSeq)
-            {
-                return (T[])(object)ArrayRef(floatSeq);
-            }
-#endif
-
             return (T[])ArrayField.GetValue(instance)!;
         }
 
         public static void SetArray(RepeatedField<T> instance, T[] value)
         {
-#if NET8_0_OR_GREATER
-            if (instance is RepeatedField<float> floatSeq)
-            {
-                ArrayRef(floatSeq) = (float[])(object)value;
-                return;
-            }
-#endif
-
             ArrayField.SetValue(instance, value);
         }
 
         public static void SetCount(RepeatedField<T> instance, int value)
         {
-#if NET8_0_OR_GREATER
-            if (instance is RepeatedField<float> floatSeq)
-            {
-                CountRef(floatSeq) = value;
-                return;
-            }
-#endif
-
             CountField.SetValue(instance, value);
         }
 
@@ -189,12 +240,5 @@ internal static class Converters
         static readonly FieldInfo CountField = typeof(RepeatedField<T>)
             .GetField("count", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new NullReferenceException();
     }
-
-#if NET8_0_OR_GREATER
-    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "array")]
-    static extern ref float[] ArrayRef(RepeatedField<float> instance);
-
-    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "count")]
-    static extern ref int CountRef(RepeatedField<float> instance);
 #endif
 }

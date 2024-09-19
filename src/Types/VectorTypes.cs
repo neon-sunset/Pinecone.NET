@@ -17,7 +17,7 @@ public record Vector
     /// <summary>
     /// Vector data.
     /// </summary>
-    public required float[] Values { get; init; }
+    public required ReadOnlyMemory<float> Values { get; init; }
 
     /// <summary>
     /// Sparse vector information.
@@ -38,12 +38,12 @@ public readonly record struct SparseVector
     /// <summary>
     /// The indices of the sparse data.
     /// </summary>
-    public required uint[] Indices { get; init; }
+    public required ReadOnlyMemory<uint> Indices { get; init; }
 
     /// <summary>
     /// The corresponding values of the sparse data, which must be with the same length as the indices.
     /// </summary>
-    public required float[] Values { get; init; }
+    public required ReadOnlyMemory<float> Values { get; init; }
 }
 
 /// <summary>
@@ -64,7 +64,7 @@ public record ScoredVector
     /// <summary>
     /// Vector data.
     /// </summary>
-    public float[]? Values { get; init; }
+    public ReadOnlyMemory<float>? Values { get; init; }
 
     /// <summary>
     /// Sparse vector information.
@@ -154,6 +154,8 @@ public readonly record struct MetadataValue
             default: metadataValue = default; return false;
         }
     }
+
+    public override string ToString() => Inner?.ToString() ?? "null";
 
     // Main supported types
     public static implicit operator MetadataValue(bool value) => new(value);

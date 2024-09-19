@@ -6,7 +6,10 @@
 version: 2
 updates:
 - package-ecosystem: "nuget" # See documentation for possible values
-  directory: "/" # Location of package manifests
+  directory: |
+    src
+    example
+    test
   schedule:
     interval: "weekly"
   groups:

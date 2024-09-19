@@ -231,6 +231,18 @@ public class ParallelOperationException<T>(
     public T PartialResult { get; } = partialResult;
 }
 
+public class ListOperationException(
+    Exception inner,
+    string[] vectorIds,
+    string? paginationToken,
+    uint readUnits
+) : Exception(inner.Message, inner)
+{
+    public string[] VectorIds { get; } = vectorIds;
+    public string? PaginationToken { get; } = paginationToken;
+    public uint ReadUnits { get; } = readUnits;
+}
+
 public class ParallelUpsertException(
     uint upserted,
     string message,

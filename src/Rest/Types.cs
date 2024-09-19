@@ -37,7 +37,7 @@ internal readonly record struct CreateCollectionRequest
 internal record QueryRequest
 {
     public string? Id { get; set; }
-    public float[]? Vector { get; set; }
+    public ReadOnlyMemory<float>? Vector { get; set; }
     public SparseVector? SparseVector { get; set; }
     public required uint TopK { get; init; }
     public MetadataMap? Filter { get; init; }
@@ -63,23 +63,26 @@ internal readonly record struct UpsertResponse
     public required uint UpsertedCount { get; init; }
 }
 
-internal record UpdateRequest : Vector
+internal record UpdateRequest
 {
-    /// <summary>Make sure to not set regular Metadata prop when serializing this</summary>
+    public required string Id { get; init; }
+    public ReadOnlyMemory<float>? Values { get; init; }
+    public SparseVector? SparseValues { get; init; }
     public MetadataMap? SetMetadata { get; init; }
     public required string Namespace { get; init; }
-
-    public static UpdateRequest From(
-        Vector vector,
-        string? indexNamespace) => new()
-    {
-        Id = vector.Id,
-        Values = vector.Values,
-        SparseValues = vector.SparseValues,
-        SetMetadata = vector.Metadata,
-        Namespace = indexNamespace ?? ""
-    };
 }
+
+internal readonly record struct ListResponse
+{
+    public readonly record struct ListVector(string Id);
+    public readonly record struct ListPagination(string? Next);
+    public readonly record struct ListUsage(uint ReadUnits);
+
+    public required ListVector[] Vectors { get; init; }
+    public ListPagination? Pagination { get; init; }
+    public required ListUsage Usage { get; init; }
+}
+
 
 internal readonly record struct FetchResponse
 {
@@ -92,5 +95,5 @@ internal readonly record struct DeleteRequest
     public string[]? Ids { get; init; }
     public required bool DeleteAll { get; init; }
     public MetadataMap? Filter { get; init; }
-    public required string Namespace { get; init; }
+    public string? Namespace { get; init; }
 }

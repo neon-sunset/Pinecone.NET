@@ -25,6 +25,7 @@ internal sealed partial class ClientContext : JsonSerializerContext;
 [JsonSerializable(typeof(UpsertRequest))]
 [JsonSerializable(typeof(UpsertResponse))]
 [JsonSerializable(typeof(UpdateRequest))]
+[JsonSerializable(typeof(ListResponse))]
 [JsonSerializable(typeof(FetchResponse))]
 [JsonSerializable(typeof(DeleteRequest))]
 [JsonSourceGenerationOptions(

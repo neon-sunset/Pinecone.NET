@@ -51,9 +51,26 @@ In the absence of an official SDK, it provides first-class support for Pinecone 
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="..\deps\pinecone-client\client_sdk\src\proto\vector_service.proto" GrpcServices="Client" Access="Internal" Link="Grpc\Protos\vector_service.proto">
-        <SourceUrl>https://raw.githubusercontent.com/pinecone-io/pinecone-client/main/client_sdk/src/proto/vector_service.proto</SourceUrl>
-    </Protobuf>
+    <Protobuf
+      Include="..\deps\pinecone-dotnet-client\proto\google\api\annotations.proto"
+      Access="Internal"
+      GrpcServices="None"
+      ProtoRoot="..\deps\pinecone-dotnet-client\proto" />
+    <Protobuf
+      Include="..\deps\pinecone-dotnet-client\proto\google\api\field_behavior.proto"
+      Access="Internal"
+      GrpcServices="None"
+      ProtoRoot="..\deps\pinecone-dotnet-client\proto" />
+    <Protobuf
+      Include="..\deps\pinecone-dotnet-client\proto\google\api\http.proto"
+      Access="Internal"
+      GrpcServices="None"
+      ProtoRoot="..\deps\pinecone-dotnet-client\proto" />
+    <Protobuf
+      Include="..\deps\pinecone-dotnet-client\proto\pinecone\data\v1\vector_service.proto"
+      Access="Internal"
+      GrpcServices="Client"
+      ProtoRoot="..\deps\pinecone-dotnet-client\proto" />
     <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 

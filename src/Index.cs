@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Pinecone;
@@ -129,7 +128,7 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="includeMetadata">Indicates whether metadata is included in the response as well as the IDs.</param>
     /// <returns></returns>
     public Task<ScoredVector[]> Query(
-        float[] values,
+        ReadOnlyMemory<float> values,
         uint topK,
         MetadataMap? filter = null,
         SparseVector? sparseValues = null,
@@ -276,13 +275,71 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="indexNamespace">Namespace to update the vector from. If no namespace is provided, the operation applies to all namespaces.</param>
     public Task Update(
         string id,
-        float[]? values = null,
+        ReadOnlyMemory<float>? values = null,
         SparseVector? sparseValues = null,
         MetadataMap? metadata = null,
         string? indexNamespace = null,
         CancellationToken ct = default)
     {
         return Transport.Update(id, values, sparseValues, metadata, indexNamespace, ct);
+    }
+
+    public async IAsyncEnumerable<string> List(
+        string? prefix = null,
+        uint? pageSize = null,
+        uint? readUnitsThreshold = null,
+        string? indexNamespace = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        uint readUnits;
+        string? next = null;
+        var threshold = readUnitsThreshold ?? uint.MaxValue;
+        do 
+        {
+            (var ids, next, readUnits) = await ListPaginated(
+                prefix, pageSize, next, indexNamespace, ct).ConfigureAwait(false);
+            foreach (var id in ids) yield return id;
+        } while (next != null && readUnits < threshold);
+    }
+
+    public Task<(string[] VectorIds, string? PaginationToken, uint ReadUnits)> ListPaginated(
+        string? prefix = null,
+        uint? pageSize = null,
+        string? paginationToken = null,
+        string? indexNamespace = null,
+        CancellationToken ct = default)
+    {
+        return Transport.List(prefix, pageSize, paginationToken, indexNamespace, ct);
+    }
+
+    public async Task<(string[] VectorIds, uint ReadUnits)> ListAll(
+        string? prefix = null,
+        string? paginationToken = null,
+        string? indexNamespace = null,
+        CancellationToken ct = default)
+    {
+        var readUnits = 0u;
+        var next = paginationToken;
+        var pages = new List<string[]>();
+        try
+        {
+            do
+            {
+                (var ids, next, readUnits) = await ListPaginated(
+                    prefix, null, next, indexNamespace, ct).ConfigureAwait(false);
+                pages.Add(ids);
+            } while (next != null);
+        }
+        catch (Exception ex)
+        {
+            throw new ListOperationException(
+                ex,
+                pages.SelectMany(p => p).ToArray(),
+                next,
+                readUnits);
+        }
+
+        return (pages is [var single] ? single : pages.SelectMany(p => p).ToArray(), readUnits);
     }
 
     /// <summary>

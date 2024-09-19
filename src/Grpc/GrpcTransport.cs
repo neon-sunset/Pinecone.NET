@@ -45,9 +45,9 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         return (await call.ConfigureAwait(false)).ToPublicType();
     }
 
-    public async Task<ScoredVector[]> Query(
+    public async Task<Pinecone.ScoredVector[]> Query(
         string? id,
-        float[]? values,
+        ReadOnlyMemory<float>? values,
         SparseVector? sparseValues,
         uint topK,
         MetadataMap? filter,
@@ -84,7 +84,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         var response = await call.ConfigureAwait(false);
 
         var matches = response.Matches;
-        var vectors = new ScoredVector[response.Matches.Count];
+        var vectors = new Pinecone.ScoredVector[response.Matches.Count];
         for (var i = 0; i < matches.Count; i++)
         {
             vectors[i] = matches[i].ToPublicType();
@@ -93,7 +93,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         return vectors;
     }
 
-    public async Task<uint> Upsert(IEnumerable<Vector> vectors, string? indexNamespace = null, CancellationToken ct = default)
+    public async Task<uint> Upsert(IEnumerable<Pinecone.Vector> vectors, string? indexNamespace = null, CancellationToken ct = default)
     {
         var request = new UpsertRequest { Namespace = indexNamespace ?? "" };
         request.Vectors.AddRange(vectors.Select(v => v.ToProtoVector()));
@@ -103,7 +103,7 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         return (await call.ConfigureAwait(false)).UpsertedCount;
     }
 
-    public Task Update(Vector vector, string? indexNamespace = null, CancellationToken ct = default) => Update(
+    public Task Update(Pinecone.Vector vector, string? indexNamespace = null, CancellationToken ct = default) => Update(
         vector.Id,
         vector.Values,
         vector.SparseValues,
@@ -113,12 +113,12 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 
     public async Task Update(
         string id,
-        float[]? values = null,
+        ReadOnlyMemory<float>? values = null,
         SparseVector? sparseValues = null,
         MetadataMap? metadata = null,
         string? indexNamespace = null,
         CancellationToken ct = default)
-    {
+    {        
         if (values is null && sparseValues is null && metadata is null)
         {
             ThrowHelpers.ArgumentException(
@@ -138,7 +138,31 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         _ = await call.ConfigureAwait(false);
     }
 
-    public async Task<Dictionary<string, Vector>> Fetch(
+    public async Task<(string[] VectorIds, string? PaginationToken, uint ReadUnits)> List(
+        string? prefix,
+        uint? limit,
+        string? paginationToken,
+        string? indexNamespace = null,
+        CancellationToken ct = default)
+    {
+        var request = new ListRequest
+        {
+            Prefix = prefix ?? "",
+            Limit = limit ?? 0,
+            PaginationToken = paginationToken ?? "",
+            Namespace = indexNamespace ?? ""
+        };
+
+        using var call = Grpc.ListAsync(request, Metadata, cancellationToken: ct);
+        var response = await call.ConfigureAwait(false);
+
+        return (
+            response.Vectors.Select(v => v.Id).ToArray(),
+            response.Pagination.Next,
+            response.Usage.ReadUnits);
+    }
+
+    public async Task<Dictionary<string, Pinecone.Vector>> Fetch(
         IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
         var request = new FetchRequest

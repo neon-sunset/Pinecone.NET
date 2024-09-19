@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -46,7 +46,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
 
     public async Task<ScoredVector[]> Query(
         string? id,
-        float[]? values,
+        ReadOnlyMemory<float>? values,
         SparseVector? sparseValues,
         uint topK,
         MetadataMap? filter,
@@ -102,8 +102,14 @@ public readonly record struct RestTransport : ITransport<RestTransport>
 
     public async Task Update(Vector vector, string? indexNamespace = null, CancellationToken ct = default)
     {
-        var request = UpdateRequest.From(vector, indexNamespace);
-        Debug.Assert(request.Metadata is null);
+        var request = new UpdateRequest
+        {
+            Id = vector.Id,
+            Values = vector.Values,
+            SparseValues = vector.SparseValues,
+            SetMetadata = vector.Metadata,
+            Namespace = indexNamespace ?? ""
+        };
 
         var response = await Http
             .PostAsJsonAsync("/vectors/update", request, RestTransportContext.Default.UpdateRequest, ct)
@@ -114,7 +120,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
 
     public async Task Update(
         string id,
-        float[]? values = null,
+        ReadOnlyMemory<float>? values = null,
         SparseVector? sparseValues = null,
         MetadataMap? metadata = null,
         string? indexNamespace = null,
@@ -129,7 +135,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         var request = new UpdateRequest
         {
             Id = id,
-            Values = values!,
+            Values = values,
             SparseValues = sparseValues,
             SetMetadata = metadata,
             Namespace = indexNamespace ?? ""
@@ -142,6 +148,35 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         await response.CheckStatusCode(ct).ConfigureAwait(false);
     }
 
+    public async Task<(string[] VectorIds, string? PaginationToken, uint ReadUnits)> List(
+        string? prefix,
+        uint? limit,
+        string? paginationToken,
+        string? indexNamespace = null,
+        CancellationToken ct = default)
+    {
+        var query = (StringBuilder?)null;
+        void Append(string key, string? value)
+        {
+            if (value is null) return;
+            query = query is null ? new("/vectors/list?") : query.Append('&');
+            query.Append(key).Append('=').Append(UrlEncoder.Default.Encode(value));
+        }
+        Append("prefix", prefix);
+        Append("limit", limit?.ToString(CultureInfo.InvariantCulture));
+        Append("paginationToken", paginationToken);
+        Append("namespace", indexNamespace);
+
+        var response = await Http
+            .GetFromJsonAsync(query?.ToString() ?? "/vectors/list", RestTransportContext.Default.ListResponse, ct)
+            .ConfigureAwait(false);
+
+        return (
+            response.Vectors.Select(v => v.Id).ToArray(),
+            response.Pagination?.Next,
+            response.Usage.ReadUnits);
+    }
+
     public async Task<Dictionary<string, Vector>> Fetch(
         IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
@@ -151,13 +186,17 @@ public readonly record struct RestTransport : ITransport<RestTransport>
             throw new ArgumentException("Must contain at least one id", nameof(ids));
         }
 
-        var addressBuilder = new StringBuilder("/vectors/fetch")
-            .Append("?ids=")
+        var addressBuilder = new StringBuilder("/vectors/fetch?ids=")
             .Append(UrlEncoder.Default.Encode(enumerator.Current));
 
         while (enumerator.MoveNext())
         {
             addressBuilder.Append("&ids=").Append(UrlEncoder.Default.Encode(enumerator.Current));
+        }
+
+        if (indexNamespace != null)
+        {
+            addressBuilder.Append("&namespace=").Append(UrlEncoder.Default.Encode(indexNamespace));
         }
 
         return (await Http
@@ -171,7 +210,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         {
             Ids = ids as string[] ?? ids.ToArray(),
             DeleteAll = false,
-            Namespace = indexNamespace ?? ""
+            Namespace = indexNamespace
         }, ct);
     }
 
@@ -181,13 +220,13 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         {
             Filter = filter,
             DeleteAll = false,
-            Namespace = indexNamespace ?? ""
+            Namespace = indexNamespace
         }, ct);
     }
 
     public Task DeleteAll(string? indexNamespace = null, CancellationToken ct = default)
     {
-        return Delete(new() { DeleteAll = true, Namespace = indexNamespace ?? "" }, ct);
+        return Delete(new() { DeleteAll = true, Namespace = indexNamespace }, ct);
     }
 
     private async Task Delete(DeleteRequest request, CancellationToken ct)
