@@ -6,7 +6,7 @@ public abstract class DataTestFixtureBase<T> : IAsyncLifetime
     where T : ITransport<T>
 {
     public const int MaxAttemptCount = 100;
-    public const int DelayInterval = 300;
+    public const int DelayInterval = 500;
     public abstract string IndexName { get; }
 
     public PineconeClient Pinecone { get; private set; } = null!;
