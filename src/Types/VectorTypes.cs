@@ -106,6 +106,9 @@ public sealed class MetadataMap : Dictionary<string, MetadataValue>
 [JsonConverter(typeof(MetadataValueConverter))]
 public readonly record struct MetadataValue
 {
+    static readonly object True = true;
+    static readonly object False = false;
+
     /// <summary>
     /// Metadata value stored.
     /// </summary>
@@ -158,7 +161,7 @@ public readonly record struct MetadataValue
     public override string ToString() => Inner?.ToString() ?? "null";
 
     // Main supported types
-    public static implicit operator MetadataValue(bool value) => new(value);
+    public static implicit operator MetadataValue(bool value) => new(value ? True : False);
     public static implicit operator MetadataValue(string? value) => new(value);
     public static implicit operator MetadataValue(int value) => new((double)value);
     public static implicit operator MetadataValue(long value) => new((double)value);

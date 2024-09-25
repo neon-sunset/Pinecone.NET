@@ -1,4 +1,5 @@
 ﻿using Pinecone;
+using Pinecone.Rest;
 using PineconeTests.Xunit;
 using Xunit;
 
@@ -7,9 +8,10 @@ namespace PineconeTests;
 [Collection("PineconeTests")]
 [PineconeApiKeySetCondition]
 [SkipTestCondition("Test environment uses free tier which does not support pod-based indexes.")]
-public class PodBasedDataTests(PodBasedDataTests.PodBasedDataTestFixture fixture) : DataTestBase<PodBasedDataTests.PodBasedDataTestFixture>(fixture)
+public class PodBasedDataTests(PodBasedDataTests.PodBasedDataTestFixture fixture)
+    : DataTestBase<PodBasedDataTests.PodBasedDataTestFixture, RestTransport>(fixture)
 {
-    public class PodBasedDataTestFixture : DataTestFixtureBase
+    public class PodBasedDataTestFixture : DataTestFixtureBase<RestTransport>
     {
         public override string IndexName => "pod-data-tests";
 

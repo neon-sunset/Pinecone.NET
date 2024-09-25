@@ -1,9 +1,9 @@
 ﻿using Pinecone;
-using Pinecone.Grpc;
 using Xunit;
 
 namespace PineconeTests;
-public abstract class DataTestFixtureBase : IAsyncLifetime
+public abstract class DataTestFixtureBase<T> : IAsyncLifetime
+    where T : ITransport<T>
 {
     public const int MaxAttemptCount = 100;
     public const int DelayInterval = 300;
@@ -11,7 +11,7 @@ public abstract class DataTestFixtureBase : IAsyncLifetime
 
     public PineconeClient Pinecone { get; private set; } = null!;
 
-    public virtual Index<GrpcTransport> Index { get; set; } = null!;
+    public virtual Index<T> Index { get; set; } = null!;
 
     public virtual async Task InitializeAsync()
     {

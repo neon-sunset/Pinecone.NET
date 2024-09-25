@@ -142,18 +142,28 @@ public sealed class PineconeClient : IDisposable
     }
 
     /// <summary>
-    /// Creates an <see cref="Index{GrpcTransport}"/> object describing the index. It is a main entry point for interacting with vectors. 
+    /// Creates an <see cref="Index{RestTransport}"/> object describing the index. It is the main entry point for interacting with vectors. 
     /// It is used to upsert, query, fetch, update, delete and list vectors, as well as retrieving index statistics.
     /// </summary>
+    /// <remarks>
+    /// The <see cref="Index{T}"/> abstraction is thread-safe and can be shared across multiple threads.
+    /// It is strongly recommended to cache and reuse the <see cref="Index{T}"/> object, for example by registering it as a singleton in a DI container.
+    /// If not, make sure to dispose the <see cref="Index{T}"/> when it is no longer needed.
+    /// </remarks>
     /// <param name="name">Name of the index to describe.</param>
     /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
-    /// <returns><see cref="Index{GrpcTransport}"/> describing the index.</returns>
-    public Task<Index<GrpcTransport>> GetIndex(string name, CancellationToken ct = default) => GetIndex<GrpcTransport>(name, ct);
+    /// <returns><see cref="Index{RestTransport}"/> describing the index.</returns>
+    public Task<Index<RestTransport>> GetIndex(string name, CancellationToken ct = default) => GetIndex<RestTransport>(name, ct);
 
     /// <summary>
     /// Creates an <see cref="Index{TTransport}"/> object describing the index. It is a main entry point for interacting with vectors. 
     /// It is used to upsert, query, fetch, update, delete and list vectors, as well as retrieving index statistics.
     /// </summary>
+    /// <remarks>
+    /// The <see cref="Index{T}"/> abstraction is thread-safe and can be shared across multiple threads.
+    /// It is strongly recommended to cache and reuse the <see cref="Index{T}"/> object, for example by registering it as a singleton in a DI container.
+    /// If not, make sure to dispose the <see cref="Index{T}"/> when it is no longer needed.
+    /// </remarks>
     /// <typeparam name="TTransport">The type of transport layer used, either <see cref="GrpcTransport"/> or <see cref="RestTransport"/>.</typeparam>
     /// <param name="name">Name of the index to describe.</param>
     /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>

@@ -1,5 +1,6 @@
 ﻿using Pinecone;
 using Pinecone.Grpc;
+using Pinecone.Rest;
 using PineconeTests.Xunit;
 using Xunit;
 
@@ -53,7 +54,7 @@ public class IndexTests
             await pinecone.CreatePodBasedIndex(indexName, 3, metric, "gcp-starter");
         }
 
-        Index<GrpcTransport> index;
+        Index<RestTransport> index;
         var attemptCount = 0;
         do
         {

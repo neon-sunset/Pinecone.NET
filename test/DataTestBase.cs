@@ -6,8 +6,9 @@ using Xunit.Sdk;
 
 namespace PineconeTests;
 
-public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<TFixture>
-    where TFixture: DataTestFixtureBase
+public abstract class DataTestBase<TFixture, TTransport>(TFixture fixture) : IClassFixture<TFixture>
+    where TFixture: DataTestFixtureBase<TTransport>
+    where TTransport: ITransport<TTransport>
 {
     protected TFixture Fixture { get; } = fixture;
 
@@ -211,11 +212,11 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
         var attemptCount = 0;
         do
         {
-            await Task.Delay(DataTestFixtureBase.DelayInterval);
+            await Task.Delay(DataTestFixtureBase<TTransport>.DelayInterval);
             attemptCount++;
             var finalFetch = await Fixture.Index.Fetch(["update-vector-id-2"], testNamespace);
             updatedVector = finalFetch["update-vector-id-2"];
-        } while (updatedVector.Values.Span[0] != 23 && attemptCount < DataTestFixtureBase.MaxAttemptCount);
+        } while (updatedVector.Values.Span[0] != 23 && attemptCount < DataTestFixtureBase<TTransport>.MaxAttemptCount);
 
         Assert.Equal("update-vector-id-2", updatedVector.Id);
         Assert.Equal(new[] { 23f, 3, 5, 7, 11, 13, 17, 19 }, updatedVector.Values);
@@ -249,11 +250,11 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
         var attemptCount = 0;
         do
         {
-            await Task.Delay(DataTestFixtureBase.DelayInterval);
+            await Task.Delay(DataTestFixtureBase<TTransport>.DelayInterval);
             attemptCount++;
             var finalFetch = await Fixture.Index.Fetch(["update-vector-id-3"], testNamespace);
             updatedVector = finalFetch["update-vector-id-3"];
-        } while (updatedVector.Values.Span[0] != 0 && attemptCount < DataTestFixtureBase.MaxAttemptCount);
+        } while (updatedVector.Values.Span[0] != 0 && attemptCount < DataTestFixtureBase<TTransport>.MaxAttemptCount);
 
         Assert.Equal("update-vector-id-3", updatedVector.Id);
         Assert.Equal(new[] { 0f, 1, 1, 2, 3, 5, 8, 13 }, updatedVector.Values);
@@ -278,11 +279,11 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
         var attemptCount = 0;
         do
         {
-            await Task.Delay(DataTestFixtureBase.DelayInterval);
+            await Task.Delay(DataTestFixtureBase<TTransport>.DelayInterval);
             attemptCount++;
             stats = await Fixture.Index.DescribeStats();
         } while (stats.Namespaces.Where(x => x.Name == testNamespace).Select(x => x.VectorCount).SingleOrDefault() > 0 
-            && attemptCount <= DataTestFixtureBase.MaxAttemptCount);
+            && attemptCount <= DataTestFixtureBase<TTransport>.MaxAttemptCount);
 
         Assert.Equal((uint)0, stats.Namespaces.Where(x => x.Name == testNamespace).Select(x => x.VectorCount).SingleOrDefault());
     }
