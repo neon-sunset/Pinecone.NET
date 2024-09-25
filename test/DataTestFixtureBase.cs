@@ -6,7 +6,7 @@ public abstract class DataTestFixtureBase<T> : IAsyncLifetime
     where T : ITransport<T>
 {
     public const int MaxAttemptCount = 100;
-    public const int DelayInterval = 500;
+    public const int DelayInterval = 250;
     public abstract string IndexName { get; }
 
     public PineconeClient Pinecone { get; private set; } = null!;
@@ -120,8 +120,10 @@ public abstract class DataTestFixtureBase<T> : IAsyncLifetime
 
     public async Task DeleteAndWait(IEnumerable<string> ids, string? indexNamespace = null)
     {
+        indexNamespace ??= "";
+
         var stats = await Index.DescribeStats();
-        var vectorCountBefore = stats.Namespaces.Single(x => x.Name == (indexNamespace ?? "")).VectorCount;
+        var vectorCountBefore = stats.Namespaces.Single(x => x.Name == indexNamespace).VectorCount;
 
         var attemptCount = 0;
         await Index.Delete(ids, indexNamespace);
@@ -131,7 +133,13 @@ public abstract class DataTestFixtureBase<T> : IAsyncLifetime
             await Task.Delay(DelayInterval);
             attemptCount++;
             stats = await Index.DescribeStats();
-            vectorCount = stats.Namespaces.Single(x => x.Name == (indexNamespace ?? "")).VectorCount;
+            // When using REST transport, it appears that the namespace is no longer returned in the stats
+            // if the last vector(s) are deleted from it. Here, we handle that by treating it as zero.
+            vectorCount = stats.Namespaces
+                .SingleOrDefault(
+                    x => x.Name == indexNamespace,
+                    new() { Name = indexNamespace, VectorCount = 0 })
+                .VectorCount;
         } while (vectorCount > vectorCountBefore - ids.Count() && attemptCount <= MaxAttemptCount);
 
         if (vectorCount > vectorCountBefore - ids.Count())
