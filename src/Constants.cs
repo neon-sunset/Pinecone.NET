@@ -2,13 +2,15 @@ using Microsoft.Extensions.Http;
 
 namespace Pinecone;
 
-internal static class Constants
+static class Constants
 {
     public const string RestApiKey = "Api-Key";
     public const string GrpcApiKey = "api-key";
 
-    public static readonly string Version =
-        typeof(Constants).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+    public const string ApiVersion = "2024-07";
+
+    public static readonly string UserAgent =
+        $"lang=C#; Pinecone.NET/{typeof(Constants).Assembly.GetName().Version?.ToString(3) ?? "0.0.0"}";
 
     public static readonly HttpClientFactoryOptions RedactApiKeyOptions = new()
     {

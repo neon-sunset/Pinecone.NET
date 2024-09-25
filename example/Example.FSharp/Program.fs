@@ -1,9 +1,13 @@
 ﻿#nowarn "3391"
-open Pinecone
+open System
 open System.Collections.Generic
+open Pinecone
 
 let createMetadata x =
     MetadataMap(x |> Seq.map (fun (k, m) -> KeyValuePair(k,m) ))
+
+let getRandomVector size =
+    Array.init size (fun _ -> Random.Shared.NextSingle())
 
 let main = task {
     use pinecone = new PineconeClient("[api-key]")
@@ -23,8 +27,8 @@ let main = task {
     use! index = pinecone.GetIndex(indexName)
 
     let tags = [|"tag1" ; "tag2"|]
-    let first = Vector(Id = "first", Values = Array.zeroCreate 1536, Metadata = createMetadata["new", true; "price", 50; "tags", tags])
-    let second = Vector(Id = "second", Values = Array.zeroCreate 1536, Metadata = createMetadata["price", 50])
+    let first = Vector(Id = "first", Values = getRandomVector 1536, Metadata = createMetadata["new", true; "price", 50; "tags", tags])
+    let second = Vector(Id = "second", Values = getRandomVector 1536, Metadata = createMetadata["price", 50])
     
     // Upsert vectors into the index
     let! _ = index.Upsert [|first; second|]
@@ -36,7 +40,7 @@ let main = task {
     let priceRange = createMetadata["price", createMetadata["$gte", 75; "$lte", 125]]
 
     // Query the index by embedding and metadata filter
-    let! results = index.Query((Array.zeroCreate 1536), 3u, filter = priceRange, includeMetadata = true)
+    let! results = index.Query(getRandomVector 1536, 3u, filter = priceRange, includeMetadata = true)
     let metadata =
         results
         |> Seq.collect _.Metadata

@@ -2,11 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace Pinecone;
 
-public record ListCollectionsResult
-{
-    public required CollectionDetails[] Collections { get; init; }
-}
-
 public record CollectionDetails
 {
     public required string Name { get; init; }
@@ -18,6 +13,7 @@ public record CollectionDetails
     public required string Environment { get; init; }
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<CollectionStatus>))]
 public enum CollectionStatus
 {
     Initializing = 0,

@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Json;
 using System.Text.Encodings.Web;
-using Microsoft.Extensions.Http.Logging;
 using Microsoft.Extensions.Logging;
 using Pinecone.Grpc;
 using Pinecone.Rest;
@@ -22,7 +21,7 @@ public sealed class PineconeClient : IDisposable
     /// <param name="apiKey">API key used to connect to Pinecone.</param>
     /// <param name="loggerFactory">The logger factory to be used.</param>
     public PineconeClient(string apiKey, ILoggerFactory? loggerFactory = null)
-        : this(apiKey, new Uri($"https://api.pinecone.io"), loggerFactory)
+        : this(apiKey, new Uri("https://api.pinecone.io"), loggerFactory)
     {
     }
 
@@ -37,25 +36,17 @@ public sealed class PineconeClient : IDisposable
         ThrowHelpers.CheckNullOrWhiteSpace(apiKey);
         ThrowHelpers.CheckNull(baseUrl);
 
-        if (loggerFactory != null)
-        {
-            var handler = new LoggingHttpMessageHandler(
-                loggerFactory.CreateLogger<HttpClient>(),
-                Constants.RedactApiKeyOptions)
-            { InnerHandler = new HttpClientHandler() };
-
-            Http = new(handler) { BaseAddress = baseUrl };
-            LoggerFactory = loggerFactory;
-        }
-
-        Http ??= new() { BaseAddress = baseUrl };
+        Http = new(loggerFactory?.CreateLoggingHandler()
+            ?? new HttpClientHandler())
+        { BaseAddress = baseUrl };
         Http.AddPineconeHeaders(apiKey);
+        LoggerFactory = loggerFactory;
     }
 
     /// <summary>
     /// Creates a new instance of the <see cref="PineconeClient" /> class.
     /// </summary>
-    /// <param name="apiKey">API key used to connect to Pinecone.</param>
+    /// /// <param name="apiKey">API key used to connect to Pinecone.</param>
     /// /// <param name="client">HTTP client used to connect to Pinecone.</param>
     /// <param name="loggerFactory">The logger factory to be used.</param>
     public PineconeClient(string apiKey, HttpClient client, ILoggerFactory? loggerFactory = null)
@@ -272,7 +263,7 @@ public sealed class PineconeClient : IDisposable
     {
         return (await Http
             .GetFromJsonAsync("/collections", ClientContext.Default.ListCollectionsResult, ct)
-            .ConfigureAwait(false))?.Collections ?? [];
+            .ConfigureAwait(false)).Collections ?? [];
     }
 
     /// <summary>

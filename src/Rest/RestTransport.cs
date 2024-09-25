@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Encodings.Web;
-using Microsoft.Extensions.Http.Logging;
 using Microsoft.Extensions.Logging;
 
 namespace Pinecone.Rest;
@@ -16,17 +15,9 @@ public readonly record struct RestTransport : ITransport<RestTransport>
         ThrowHelpers.CheckNullOrWhiteSpace(host);
         ThrowHelpers.CheckNullOrWhiteSpace(apiKey);
 
-        if (loggerFactory != null)
-        {
-            var handler = new LoggingHttpMessageHandler(
-                loggerFactory.CreateLogger<HttpClient>(),
-                Constants.RedactApiKeyOptions)
-            { InnerHandler = new HttpClientHandler() };
-
-            Http = new(handler) { BaseAddress = new($"https://{host}") };
-        }
-
-        Http ??= new() { BaseAddress = new($"https://{host}") };
+        Http = new(loggerFactory?.CreateLoggingHandler()
+            ?? new HttpClientHandler())
+        { BaseAddress = new($"https://{host}") };
         Http.AddPineconeHeaders(apiKey);
     }
 

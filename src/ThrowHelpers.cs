@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace Pinecone;
 
-internal static class ThrowHelpers
+static class ThrowHelpers
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void CheckGreaterThan(

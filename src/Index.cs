@@ -53,7 +53,7 @@ public sealed partial record Index<TTransport> : IDisposable
     where TTransport : ITransport<TTransport>
 {
 #if NET6_0_OR_GREATER
-    const int BatchParallelism = 20;
+    const int BatchParallelism = 10;
 
     readonly ILogger? Logger;
 #endif
@@ -171,12 +171,11 @@ public sealed partial record Index<TTransport> : IDisposable
         CancellationToken ct = default)
     {
 #if NET6_0_OR_GREATER
-        const int parallelism = 20;
         var batchSize = GetBatchSize(); 
 
         if (vectors.TryGetNonEnumeratedCount(out var count) && count > batchSize)
         {
-            return Upsert(vectors, batchSize, parallelism, indexNamespace, ct);
+            return Upsert(vectors, batchSize, BatchParallelism, indexNamespace, ct);
         }
 #endif
         return Transport.Upsert(vectors, indexNamespace, ct);
@@ -284,6 +283,17 @@ public sealed partial record Index<TTransport> : IDisposable
         return Transport.Update(id, values, sparseValues, metadata, indexNamespace, ct);
     }
 
+    /// <summary>
+    /// An asynchronous iterator that lists vector IDs in the index using specified page size, prefix, and read units threshold.
+    /// The iterator terminates when all vectors have been listed or the read units threshold has been reached (if specified).
+    /// </summary>
+    /// <param name="prefix">The prefix to filter the IDs by.</param>
+    /// <param name="pageSize">
+    /// The number of IDs to fetch per request. When left unspecified, the page size detemined by the server is used.
+    /// As of the current version, the supported range is 1 to 100. Changing this value may affect throughput, memory and read units consumption.
+    /// </param>
+    /// <param name="readUnitsThreshold">The maximum number of read units to consume. The iterator will stop when the threshold is reached.</param>
+    /// <param name="indexNamespace">Namespace to list vectors from. If no namespace is provided, the operation applies to all namespaces.</param> 
     public async IAsyncEnumerable<string> List(
         string? prefix = null,
         uint? pageSize = null,
@@ -291,29 +301,42 @@ public sealed partial record Index<TTransport> : IDisposable
         string? indexNamespace = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        uint readUnits;
-        string? next = null;
+        var readUnits = 0u;
+        var next = (string?)null;
         var threshold = readUnitsThreshold ?? uint.MaxValue;
         do 
         {
-            (var ids, next, readUnits) = await ListPaginated(
-                prefix, pageSize, next, indexNamespace, ct).ConfigureAwait(false);
+            (var ids, next, var units) = await ListPaginated(
+                prefix,
+                pageSize,
+                next,
+                indexNamespace,
+                ct).ConfigureAwait(false);
+            readUnits += units;
             foreach (var id in ids) yield return id;
         } while (next != null && readUnits < threshold);
     }
 
-    public Task<(string[] VectorIds, string? PaginationToken, uint ReadUnits)> ListPaginated(
-        string? prefix = null,
-        uint? pageSize = null,
-        string? paginationToken = null,
-        string? indexNamespace = null,
-        CancellationToken ct = default)
-    {
-        return Transport.List(prefix, pageSize, paginationToken, indexNamespace, ct);
-    }
-
+    /// <summary>
+    /// Lists all vector IDs in the index filtered by the specified arguments by paginating through the entire index and collecting the results.
+    /// <para/>
+    /// This method is useful when performing data export or any similar case where materializing the contents of the index is necessary.
+    /// Otherwise, you may want to use the either <see cref="List"/> or <see cref="ListPaginated"/> methods for more efficient listing.
+    /// </summary>
+    /// <param name="prefix">The prefix to filter the IDs by.</param>
+    /// <param name="pageSize">
+    /// The number of IDs to fetch per request. When left unspecified, the page size detemined by the server is used.
+    /// As of the current version, the supported range is 1 to 100. Changing this value may affect throughput, memory and read units consumption.
+    /// </param>
+    /// <param name="paginationToken">The optional token to resume the listing from a specific point. See <see cref="ListOperationException.PaginationToken"/> for more information.</param>
+    /// <param name="indexNamespace">Namespace to list vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
+    /// <exception cref="ListOperationException">
+    /// Thrown when an error occurs during the listing operation. The exception contains the IDs of the vectors that were successfully listed,
+    /// the pagination token that can be used to resume the listing, and the number of read units consumed.
+    /// </exception>
     public async Task<(string[] VectorIds, uint ReadUnits)> ListAll(
         string? prefix = null,
+        uint pageSize = 100,
         string? paginationToken = null,
         string? indexNamespace = null,
         CancellationToken ct = default)
@@ -325,9 +348,14 @@ public sealed partial record Index<TTransport> : IDisposable
         {
             do
             {
-                (var ids, next, readUnits) = await ListPaginated(
-                    prefix, null, next, indexNamespace, ct).ConfigureAwait(false);
+                (var ids, next, var units) = await ListPaginated(
+                    prefix,
+                    pageSize,
+                    next,
+                    indexNamespace,
+                    ct).ConfigureAwait(false);
                 pages.Add(ids);
+                readUnits += units;
             } while (next != null);
         }
         catch (Exception ex)
@@ -340,6 +368,26 @@ public sealed partial record Index<TTransport> : IDisposable
         }
 
         return (pages is [var single] ? single : pages.SelectMany(p => p).ToArray(), readUnits);
+    }
+
+    /// <summary>
+    /// Lists vector IDs in the index using specified page size, prefix, and optional pagination token.
+    /// </summary>
+    /// <param name="prefix">The prefix to filter the IDs by.</param>
+    /// <param name="pageSize">
+    /// The number of IDs to fetch per request. When left unspecified, the page size detemined by the server is used.
+    /// As of the current version, the supported range is 1 to 100. Changing this value may affect throughput, memory and read units consumption.
+    /// </param>
+    /// <param name="paginationToken">The pagination token to continue a previous listing operation.</param>
+    /// <param name="indexNamespace">Namespace to list vectors from. If no namespace is provided, the operation applies to all namespaces.</param>
+    public Task<(string[] VectorIds, string? PaginationToken, uint ReadUnits)> ListPaginated(
+        string? prefix = null,
+        uint? pageSize = null,
+        string? paginationToken = null,
+        string? indexNamespace = null,
+        CancellationToken ct = default)
+    {
+        return Transport.List(prefix, pageSize, paginationToken, indexNamespace, ct);
     }
 
     /// <summary>
@@ -361,12 +409,11 @@ public sealed partial record Index<TTransport> : IDisposable
     public Task<Dictionary<string, Vector>> Fetch(IEnumerable<string> ids, string? indexNamespace = null, CancellationToken ct = default)
     {
 #if NET6_0_OR_GREATER
-        const int parallelism = 20;
         var batchSize = GetBatchSize();
 
         if (ids.TryGetNonEnumeratedCount(out var count) && count > batchSize)
         {
-            return Fetch(ids, batchSize, parallelism, indexNamespace, ct);
+            return Fetch(ids, batchSize, BatchParallelism, indexNamespace, ct);
         }
 #endif
         return Transport.Fetch(ids, indexNamespace, ct);

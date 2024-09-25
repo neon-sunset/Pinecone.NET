@@ -2,12 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace Pinecone.Rest;
 
-internal sealed record ListIndexesResult
+sealed record ListIndexesResult
 {
     public required IndexDetails[] Indexes { get; init; }
 }
 
-internal sealed record CreateIndexRequest
+sealed record CreateIndexRequest
 {
     public required string Name { get; init; }
     public required uint Dimension { get; init; }
@@ -15,7 +15,7 @@ internal sealed record CreateIndexRequest
     public required IndexSpec Spec { get; init; }
 }
 
-internal readonly record struct ConfigureIndexRequest
+readonly record struct ConfigureIndexRequest
 {
     public int? Replicas { get; init; }
 
@@ -23,18 +23,23 @@ internal readonly record struct ConfigureIndexRequest
     public string? PodType { get; init; }
 }
 
-internal readonly record struct DescribeStatsRequest
+readonly record struct DescribeStatsRequest
 {
     public MetadataMap? Filter { get; init; }
 }
 
-internal readonly record struct CreateCollectionRequest
+readonly record struct CreateCollectionRequest
 {
     public required string Name { get; init; }
     public required string Source { get; init; }
 }
 
-internal record QueryRequest
+readonly record struct ListCollectionsResult
+{
+    public required CollectionDetails[] Collections { get; init; }
+}
+
+record QueryRequest
 {
     public string? Id { get; set; }
     public ReadOnlyMemory<float>? Vector { get; set; }
@@ -46,24 +51,24 @@ internal record QueryRequest
     public required bool IncludeMetadata { get; init; }
 }
 
-internal readonly record struct QueryResponse
+readonly record struct QueryResponse
 {
     public required ScoredVector[] Matches { get; init; }
     public required string Namespace { get; init; }
 }
 
-internal readonly record struct UpsertRequest
+readonly record struct UpsertRequest
 {
     public required IEnumerable<Vector> Vectors { get; init; }
     public required string Namespace { get; init; }
 }
 
-internal readonly record struct UpsertResponse
+readonly record struct UpsertResponse
 {
     public required uint UpsertedCount { get; init; }
 }
 
-internal record UpdateRequest
+record UpdateRequest
 {
     public required string Id { get; init; }
     public ReadOnlyMemory<float>? Values { get; init; }
@@ -72,7 +77,7 @@ internal record UpdateRequest
     public required string Namespace { get; init; }
 }
 
-internal readonly record struct ListResponse
+readonly record struct ListResponse
 {
     public readonly record struct ListVector(string Id);
     public readonly record struct ListPagination(string? Next);
@@ -84,13 +89,13 @@ internal readonly record struct ListResponse
 }
 
 
-internal readonly record struct FetchResponse
+readonly record struct FetchResponse
 {
     public required Dictionary<string, Vector> Vectors { get; init; }
     public required string Namespace { get; init; }
 }
 
-internal readonly record struct DeleteRequest
+readonly record struct DeleteRequest
 {
     public string[]? Ids { get; init; }
     public required bool DeleteAll { get; init; }

@@ -1,17 +1,19 @@
 # Pinecone.NET
 
 Pinecone.NET is a fully-fledged C# library for the Pinecone vector database.  
-In the absence of an official SDK, it provides first-class support for Pinecone in C# and F#.
+This is a community library that provides first-class support for Pinecone in C# and F#.
 
 ## Features
 
 - Standard operations on pod-based and serverless indexes
 - gRPC and REST transports for vector operations
 - Sparse-dense vectors
-- Automatic batching and parallelization for upsert, fetch and delete operations
-- Efficient vector serialization
 - Metadata support
+- Client-side gRPC load balancing
+- Efficient vector serialization
 - NativeAOT compatibility (e.g. for AWS Lambda)
+- Automatic batching and parallelization for upsert, fetch and delete operations
+- Exceptions to save partial results and recover from failures on batched and streamed operations
 
 ## Installation
 
@@ -123,4 +125,4 @@ await pinecone.DeleteCollection("myCollection");
 
 ## Contributing
 
-Contributions are welcome! Feel free open an issue or a PR.
+Contributions are welcome! Feel free to open an issue or a PR.

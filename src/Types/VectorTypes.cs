@@ -185,3 +185,95 @@ public readonly record struct MetadataValue
     public static implicit operator MetadataValue(List<double>? value) => new(value?.Select(v => (MetadataValue)v));
     public static implicit operator MetadataValue(List<decimal>? value) => new(value?.Select(v => (MetadataValue)v));
 }
+
+/// <summary>
+/// An exception that occurs when <see cref="Index{T}.ListAll"/> operation fails.
+/// <para/>
+/// It contains the vector IDs that were successfully read before the operation failed,
+/// and the pagination token that can be used to resume and/or retry the operation.
+/// </summary>
+public class ListOperationException(
+    Exception inner,
+    string[] vectorIds,
+    string? paginationToken,
+    uint readUnits
+) : Exception(inner.Message, inner)
+{
+    /// <summary>
+    /// The IDs of the vectors that were successfully read before the operation failed.
+    /// </summary>
+    public string[] VectorIds { get; } = vectorIds;
+
+    /// <summary>
+    /// The pagination token that can be passed to <see cref="Index{T}.ListAll"/> to resume/retry the operation
+    /// where it left off, or to <see cref="Index{T}.ListPaginated"/> to continue using the pagination token manually.
+    /// </summary>
+    public string? PaginationToken { get; } = paginationToken;
+
+    /// <summary>
+    /// The number of read units consumed by the operation.
+    /// </summary> 
+    public uint ReadUnits { get; } = readUnits;
+}
+
+/// <summary>
+/// An exception that occurs when one or more parallel batch upserts fail in scope of
+/// <see cref="Index{T}.Upsert(IEnumerable{Vector}, string?, CancellationToken)"/> operation.
+/// <para/>
+/// It contains the vector count that was successfully upserted before the operation failed,
+/// the IDs of the vectors from the batches that could not be upserted, and the exceptions that caused the failure.
+/// </summary>
+public class ParallelUpsertException(
+    uint upserted,
+    string message,
+    string[] failedBatchVectorIds,
+    Exception[] exceptions
+) : AggregateException(message, exceptions)
+{
+    /// <summary>
+    /// The number of vectors that were successfully upserted before the operation failed.
+    /// </summary>
+    public uint Upserted { get; } = upserted;
+
+    /// <summary>
+    /// The IDs of the vectors from the batches that failed to upsert.
+    /// </summary>
+    public string[] FailedBatchVectorIds { get; } = failedBatchVectorIds;
+}
+
+/// <summary>
+/// An exception that occurs when one or more parallel batch fetches fail in scope of
+/// <see cref="Index{T}.Fetch(IEnumerable{string}, string?, CancellationToken)"/> operation.
+/// <para/>
+/// It contains the fetched vectors that were successfully fetched before the operation failed,
+/// and the exceptions that caused the failure.
+/// </summary> 
+public class ParallelFetchException(
+    Dictionary<string, Vector> fetched,
+    string message,
+    Exception[] exceptions
+) : AggregateException(message, exceptions)
+{
+    /// <summary>
+    /// The vectors that were successfully fetched before the operation failed.
+    /// </summary>
+    public Dictionary<string, Vector> Fetched { get; } = fetched;
+}
+
+/// <summary>
+/// An exception that occurs when one or more parallel batch delete operations fail in scope of
+/// <see cref="Index{T}.Delete(IEnumerable{string}, string?, CancellationToken)"/> operation.
+/// <para/>
+/// It contains the IDs of the vectors from the batches that could not be deleted, and the exceptions that caused the failure.
+/// </summary> 
+public class ParallelDeleteException(
+    string message,
+    string[] failedBatchVectorIds,
+    Exception[] exceptions
+) : AggregateException(message, exceptions)
+{
+    /// <summary>
+    /// The IDs of the vectors from the batches that could not be deleted.
+    /// </summary>
+    public string[] FailedBatchVectorIds { get; } = failedBatchVectorIds;
+}

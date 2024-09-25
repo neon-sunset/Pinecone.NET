@@ -1,13 +1,16 @@
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Google.Protobuf.Collections;
 using Google.Protobuf.WellKnownTypes;
 
 namespace Pinecone.Grpc;
 
-internal static class Converters
+static class Converters
 {
+    static readonly Value NullValue = Value.ForNull();
+    static readonly Value TrueValue = Value.ForBool(true);
+    static readonly Value FalseValue = Value.ForBool(false);
+
     // gRPC types conversion to sane and usable ones
     public static Struct ToProtoStruct(this MetadataMap source)
     {
@@ -23,10 +26,10 @@ internal static class Converters
     public static Value ToProtoValue(this MetadataValue source) => source.Inner switch
     {
         // This is terrible but such is life
-        null => Value.ForNull(),
+        null => NullValue,
         double num => Value.ForNumber(num),
         string str => Value.ForString(str),
-        bool boolean => Value.ForBool(boolean),
+        bool boolean => boolean ? TrueValue : FalseValue,
         MetadataMap nested => Value.ForStruct(nested.ToProtoStruct()),
         IEnumerable<MetadataValue> list => Value.ForList(list.Select(v => v.ToProtoValue()).ToArray()),
         _ => ThrowHelpers.ArgumentException<Value>($"Unsupported metadata type: {source.Inner!.GetType()}")
@@ -119,75 +122,6 @@ internal static class Converters
         };
     }
     
-#if NET8_0_OR_GREATER
-    // These have to be duplicated because unsafe accessor does not support generics in .NET 8.
-    // This approach is, however, very useful as we completely bypass referencing reflection for NAOT.
-    public static ReadOnlyMemory<float> AsMemory(this RepeatedField<float> source)
-    {
-        return ArrayRef(source).AsMemory(0, source.Count);
-    }
-
-    public static void OverwriteWith(this RepeatedField<float> target, ReadOnlyMemory<float>? source)
-    {
-        if (source is null or { IsEmpty: true }) return;
-
-        float[] array;
-        int count;
-        if (MemoryMarshal.TryGetArray(source.Value, out var segment)
-            && segment.Offset is 0)
-        {
-            array = segment.Array!;
-            count = segment.Count;
-        }
-        else
-        {
-            array = source.Value.ToArray();
-            count = array.Length;
-        }
-
-        ArrayRef(target) = array;
-        CountRef(target) = count;
-    }
-
-    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "array")]
-    static extern ref float[] ArrayRef(RepeatedField<float> instance);
-
-    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "count")]
-    static extern ref int CountRef(RepeatedField<float> instance);
-
-    public static ReadOnlyMemory<uint> AsMemory(this RepeatedField<uint> source)
-    {
-        return ArrayRef(source).AsMemory(0, source.Count);
-    }
-
-    public static void OverwriteWith(this RepeatedField<uint> target, ReadOnlyMemory<uint>? source)
-    {
-        if (source is null or { IsEmpty: true }) return;
-
-        uint[] array;
-        int count;
-        if (MemoryMarshal.TryGetArray(source.Value, out var segment)
-            && segment.Offset is 0)
-        {
-            array = segment.Array!;
-            count = segment.Count;
-        }
-        else
-        {
-            array = source.Value.ToArray();
-            count = array.Length;
-        }
-
-        ArrayRef(target) = array;
-        CountRef(target) = count;
-    }
-
-    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "array")]
-    static extern ref uint[] ArrayRef(RepeatedField<uint> instance);
-    
-    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "count")]
-    static extern ref int CountRef(RepeatedField<uint> instance);
-#else
     public static ReadOnlyMemory<T> AsMemory<T>(this RepeatedField<T> source)
         where T : unmanaged
     {
@@ -217,8 +151,19 @@ internal static class Converters
         FieldAccessors<T>.SetCount(target, count);
     }
 
-    private static class FieldAccessors<T> where T : unmanaged
+    // UnsafeAccessor path was removed because turns out the support for
+    // specified generics was added unintentionally and breaks on .NET 9.
+    // See https://github.com/dotnet/runtime/issues/108046
+    // TODO: Once .NET 9 is out, bring back UnsafeAccessor path using the
+    // pattern described as the solution in the issue above.
+    static class FieldAccessors<T> where T : unmanaged
     {
+        static readonly FieldInfo ArrayField = typeof(RepeatedField<T>)
+            .GetField("array", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new NullReferenceException();
+
+        static readonly FieldInfo CountField = typeof(RepeatedField<T>)
+            .GetField("count", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new NullReferenceException();
+
         public static T[] GetArray(RepeatedField<T> instance)
         {
             return (T[])ArrayField.GetValue(instance)!;
@@ -233,12 +178,5 @@ internal static class Converters
         {
             CountField.SetValue(instance, value);
         }
-
-        static readonly FieldInfo ArrayField = typeof(RepeatedField<T>)
-            .GetField("array", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new NullReferenceException();
-
-        static readonly FieldInfo CountField = typeof(RepeatedField<T>)
-            .GetField("count", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new NullReferenceException();
     }
-#endif
 }

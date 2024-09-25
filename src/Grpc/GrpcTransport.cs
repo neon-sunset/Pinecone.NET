@@ -145,20 +145,20 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
         string? indexNamespace = null,
         CancellationToken ct = default)
     {
-        var request = new ListRequest
-        {
-            Prefix = prefix ?? "",
-            Limit = limit ?? 0,
-            PaginationToken = paginationToken ?? "",
-            Namespace = indexNamespace ?? ""
-        };
+        var request = new ListRequest { Namespace = indexNamespace ?? "" };
+        if (prefix != null)
+            request.Prefix = prefix;
+        if (limit != null)
+            request.Limit = limit.Value;
+        if (paginationToken != null)
+            request.PaginationToken = paginationToken;
 
         using var call = Grpc.ListAsync(request, Metadata, cancellationToken: ct);
         var response = await call.ConfigureAwait(false);
 
         return (
             response.Vectors.Select(v => v.Id).ToArray(),
-            response.Pagination.Next,
+            response.Pagination?.Next,
             response.Usage.ReadUnits);
     }
 

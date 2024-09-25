@@ -38,7 +38,7 @@ public abstract class DataTestFixtureBase : IAsyncLifetime
         var basicVectors = Enumerable.Range(1, 5).Select(i => new Vector
         {
             Id = "basic-vector-" + i,
-            Values = [i * 0.5f, i * 1.0f, i * 1.5f, i * 2.0f, i * 2.5f, i * 3.0f, i * 3.5f, i * 4.0f],
+            Values = new[] { i * 0.5f, i * 1.0f, i * 1.5f, i * 2.0f, i * 2.5f, i * 3.0f, i * 3.5f, i * 4.0f },
         }).ToList();
 
         await InsertAndWait(basicVectors);
@@ -46,7 +46,7 @@ public abstract class DataTestFixtureBase : IAsyncLifetime
         var customNamespaceVectors = Enumerable.Range(1, 3).Select(i => new Vector
         {
             Id = "custom-namespace-vector-" + i,
-            Values = [i * 1.1f, i * 2.2f, i * 3.3f, i * 4.4f, i * 5.5f, i * 6.6f, i * 7.7f, i * 8.8f],
+            Values = new[] { i * 1.1f, i * 2.2f, i * 3.3f, i * 4.4f, i * 5.5f, i * 6.6f, i * 7.7f, i * 8.8f },
         }).ToList();
 
         await InsertAndWait(customNamespaceVectors, "namespace1");
@@ -78,17 +78,17 @@ public abstract class DataTestFixtureBase : IAsyncLifetime
 
         var metadataVectors = new Vector[]
         {
-            new() { Id = "metadata-vector-1", Values = [2, 3, 5, 7, 11, 13, 17, 19], Metadata = metadata1 },
-            new() { Id = "metadata-vector-2", Values = [0, 1, 1, 2, 3, 5, 8, 13], Metadata = metadata2 },
-            new() { Id = "metadata-vector-3", Values = [2, 1, 3, 4, 7, 11, 18, 29], Metadata = metadata3 },
+            new() { Id = "metadata-vector-1", Values = new[] { 2f, 3, 5, 7, 11, 13, 17, 19 }, Metadata = metadata1 },
+            new() { Id = "metadata-vector-2", Values = new[] { 0f, 1, 1, 2, 3, 5, 8, 13 }, Metadata = metadata2 },
+            new() { Id = "metadata-vector-3", Values = new[] { 2f, 1, 3, 4, 7, 11, 18, 29 }, Metadata = metadata3 },
         };
 
         await InsertAndWait(metadataVectors);
 
         var sparseVectors = new Vector[]
         {
-            new() { Id = "sparse-1", Values = [5, 10, 15, 20, 25, 30, 35, 40], SparseValues = new() { Indices = [1, 4], Values = [0.2f, 0.5f] } },
-            new() { Id = "sparse-2", Values = [15, 110, 115, 120, 125, 130, 135, 140], SparseValues = new() { Indices = [2, 3], Values = [0.5f, 0.8f] } },
+            new() { Id = "sparse-1", Values = new[] { 5f, 10, 15, 20, 25, 30, 35, 40 }, SparseValues = new() { Indices = new[] { 1u, 4u }, Values = new[] { 0.2f, 0.5f } } },
+            new() { Id = "sparse-2", Values = new[] { 15f, 110, 115, 120, 125, 130, 135, 140 }, SparseValues = new() { Indices = new[] { 2u, 3u }, Values = new[] { 0.5f, 0.8f } } },
         };
 
         await InsertAndWait(sparseVectors);

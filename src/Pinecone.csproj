@@ -9,7 +9,7 @@
     <PackageTags>Pinecone;PineconeIo;Vector;Database;</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>Pinecone.NET is a fully-fledged C# library for the Pinecone vector database.  
-In the absence of an official SDK, it provides first-class support for Pinecone in C# and F#.</Description>
+This is a community library that provides first-class support for Pinecone in C# and F#.</Description>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -41,7 +41,7 @@ In the absence of an official SDK, it provides first-class support for Pinecone 
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Google.Protobuf" Version="3.28.1" />
+    <PackageReference Include="Google.Protobuf" Version="3.28.2" />
     <PackageReference Include="Grpc.Net.Client" Version="2.65.0" />
     <PackageReference Include="Grpc.Net.ClientFactory" Version="2.65.0" />
     <PackageReference Include="Grpc.Tools" Version="2.66.0">

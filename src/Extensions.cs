@@ -2,10 +2,12 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Grpc.Core;
+using Microsoft.Extensions.Http.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Pinecone;
 
-internal static class Extensions
+static class Extensions
 {
     internal static void AddPineconeHeaders(this HttpClient http, string apiKey)
     {
@@ -14,18 +16,26 @@ internal static class Extensions
         if (!headers.Contains(Constants.RestApiKey))
             headers.Add(Constants.RestApiKey, apiKey);
         if (!headers.Contains("X-Pinecone-Api-Version"))
-            headers.Add("X-Pinecone-Api-Version", "2024-07");
+            headers.Add("X-Pinecone-Api-Version", Constants.ApiVersion);
         if (!headers.Contains("User-Agent"))
-            headers.TryAddWithoutValidation("User-Agent", $"lang=C#; Pinecone.NET/{Constants.Version}");
+            headers.TryAddWithoutValidation("User-Agent", Constants.UserAgent);
     }
 
     internal static Metadata WithPineconeProps(this Metadata metadata, string apiKey)
     {
         metadata.Add(Constants.GrpcApiKey, apiKey);
-        metadata.Add("X-Pinecone-Api-Version", "2024-07");
-        metadata.Add("User-Agent", $"lang=C#; Pinecone.NET/{Constants.Version}");
+        metadata.Add("X-Pinecone-Api-Version", Constants.ApiVersion);
+        metadata.Add("User-Agent", Constants.UserAgent);
 
         return metadata;
+    }
+
+    internal static HttpMessageHandler CreateLoggingHandler(this ILoggerFactory factory)
+    {
+        return new LoggingHttpMessageHandler(
+            factory.CreateLogger<HttpClient>(),
+            Constants.RedactApiKeyOptions)
+        { InnerHandler = new HttpClientHandler() };
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
