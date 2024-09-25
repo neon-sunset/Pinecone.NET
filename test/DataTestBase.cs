@@ -55,11 +55,11 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
         var ordered = result.OrderBy(x => x.Id).ToList();
 
         Assert.Equal("metadata-vector-1", ordered[0].Id);
-        Assert.Equal(new[] { 2f, 3, 5, 7, 11, 13, 17, 19 }, ordered[0].Values);
+        Assert.Equal(new[] { 2f, 3, 5, 7, 11, 13, 17, 19 }, ordered[0].Values!.Value);
         Assert.Equal("metadata-vector-2", ordered[1].Id);
-        Assert.Equal(new[] { 0f, 1, 1, 2, 3, 5, 8, 13 }, ordered[1].Values);
+        Assert.Equal(new[] { 0f, 1, 1, 2, 3, 5, 8, 13 }, ordered[1].Values!.Value);
         Assert.Equal("metadata-vector-3", ordered[2].Id);
-        Assert.Equal(new[] { 2f, 1, 3, 4, 7, 11, 18, 29 }, ordered[2].Values);
+        Assert.Equal(new[] { 2f, 1, 3, 4, 7, 11, 18, 29 }, ordered[2].Values!.Value);
     }
 
     [PineconeFact]
@@ -74,7 +74,7 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
 
         Assert.Single(result);
         Assert.Equal("metadata-vector-2", result[0].Id);
-        Assert.Equal(new[] { 0f, 1, 1, 2, 3, 5, 8, 13 }, result[0].Values);
+        Assert.Equal(new[] { 0f, 1, 1, 2, 3, 5, 8, 13 }, result[0].Values!.Value);
         var metadata = result[0].Metadata;
         Assert.NotNull(metadata);
 
@@ -101,9 +101,9 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
         var ordered = result.OrderBy(x => x.Id).ToList();
 
         Assert.Equal("metadata-vector-1", ordered[0].Id);
-        Assert.Equal(new[] { 2f, 3, 5, 7, 11, 13, 17, 19 }, ordered[0].Values);
+        Assert.Equal(new[] { 2f, 3, 5, 7, 11, 13, 17, 19 }, ordered[0].Values!.Value);
         Assert.Equal("metadata-vector-3", ordered[1].Id);
-        Assert.Equal(new[] { 2f, 1, 3, 4, 7, 11, 18, 29 }, ordered[1].Values);
+        Assert.Equal(new[] { 2f, 1, 3, 4, 7, 11, 18, 29 }, ordered[1].Values!.Value);
     }
 
     [PineconeFact]
@@ -120,9 +120,9 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
         var ordered = result.OrderBy(x => x.Id).ToList();
 
         Assert.Equal("metadata-vector-1", ordered[0].Id);
-        Assert.Equal(new[] { 2f, 3, 5, 7, 11, 13, 17, 19 }, ordered[0].Values);
+        Assert.Equal(new[] { 2f, 3, 5, 7, 11, 13, 17, 19 }, ordered[0].Values!.Value);
         Assert.Equal("metadata-vector-3", ordered[1].Id);
-        Assert.Equal(new[] { 2f, 1, 3, 4, 7, 11, 18, 29 }, ordered[1].Values);
+        Assert.Equal(new[] { 2f, 1, 3, 4, 7, 11, 18, 29 }, ordered[1].Values!.Value);
     }
 
     [PineconeFact]
@@ -150,9 +150,9 @@ public abstract class DataTestBase<TFixture>(TFixture fixture) : IClassFixture<T
         var ordered = result.OrderBy(x => x.Id).ToList();
 
         Assert.Equal("metadata-vector-1", ordered[0].Id);
-        Assert.Equal(new[] { 2f, 3, 5, 7, 11, 13, 17, 19 }, ordered[0].Values);
+        Assert.Equal(new[] { 2f, 3, 5, 7, 11, 13, 17, 19 }, ordered[0].Values!.Value);
         Assert.Equal("metadata-vector-3", ordered[1].Id);
-        Assert.Equal(new[] { 2f, 1, 3, 4, 7, 11, 18, 29 }, ordered[1].Values);
+        Assert.Equal(new[] { 2f, 1, 3, 4, 7, 11, 18, 29 }, ordered[1].Values!.Value);
     }
 
     [PineconeFact]
