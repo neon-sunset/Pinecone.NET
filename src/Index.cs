@@ -30,7 +30,7 @@ public sealed partial record Index<
     /// <summary>
     /// The URL address where the index is hosted.
     /// </summary>
-    public string? Host { get; init; }
+    public required string Host { get; init; }
 
     /// <summary>
     /// Additional information about the index.

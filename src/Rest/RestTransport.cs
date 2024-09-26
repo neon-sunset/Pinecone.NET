@@ -26,13 +26,13 @@ public readonly record struct RestTransport : ITransport<RestTransport>
     public async Task<IndexStats> DescribeStats(MetadataMap? filter = null, CancellationToken ct = default)
     {
         var request = new DescribeStatsRequest { Filter = filter };
-        var response = await Http
+        using var response = await Http
             .PostAsJsonAsync("/describe_index_stats", request, RestTransportContext.Default.DescribeStatsRequest, ct)
             .ConfigureAwait(false);
 
         return await response.Content
             .ReadFromJsonAsync(RestTransportContext.Default.IndexStats, ct)
-            .ConfigureAwait(false) ?? ThrowHelpers.JsonException<IndexStats>();
+            .ConfigureAwait(false);
     }
 
     public async Task<ScoredVector[]> Query(
@@ -64,7 +64,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
             IncludeValues = includeValues,
         };
 
-        var response = await Http
+        using var response = await Http
             .PostAsJsonAsync("/query", request, RestTransportContext.Default.QueryRequest, ct)
             .ConfigureAwait(false);
 
@@ -82,7 +82,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
             Namespace = indexNamespace ?? ""
         };
 
-        var response = await Http
+        using var response = await Http
             .PostAsJsonAsync("/vectors/upsert", request, RestTransportContext.Default.UpsertRequest, ct)
             .ConfigureAwait(false);
 
@@ -102,7 +102,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
             Namespace = indexNamespace ?? ""
         };
 
-        var response = await Http
+        using var response = await Http
             .PostAsJsonAsync("/vectors/update", request, RestTransportContext.Default.UpdateRequest, ct)
             .ConfigureAwait(false);
 
@@ -132,7 +132,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
             Namespace = indexNamespace ?? ""
         };
 
-        var response = await Http
+        using var response = await Http
             .PostAsJsonAsync("/vectors/update", request, RestTransportContext.Default.UpdateRequest, ct)
             .ConfigureAwait(false);
 
@@ -222,7 +222,7 @@ public readonly record struct RestTransport : ITransport<RestTransport>
 
     private async Task Delete(DeleteRequest request, CancellationToken ct)
     {
-        var response = await Http
+        using var response = await Http
             .PostAsJsonAsync("/vectors/delete", request, RestTransportContext.Default.DeleteRequest, ct)
             .ConfigureAwait(false);
         await response.CheckStatusCode(ct).ConfigureAwait(false);

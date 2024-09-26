@@ -2,12 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace Pinecone.Rest;
 
-sealed record ListIndexesResult
+readonly struct ListIndexesResult
 {
     public required IndexDetails[] Indexes { get; init; }
 }
 
-sealed record CreateIndexRequest
+sealed class CreateIndexRequest
 {
     public required string Name { get; init; }
     public required uint Dimension { get; init; }
@@ -15,31 +15,41 @@ sealed record CreateIndexRequest
     public required IndexSpec Spec { get; init; }
 }
 
-readonly record struct ConfigureIndexRequest
+readonly struct ConfigureIndexRequest
 {
-    public int? Replicas { get; init; }
+    public readonly struct ConfigureIndexSpec
+    {
+        public required PodConfig Pod { get; init; }
+    }
 
-    [JsonPropertyName("pod_type")]
-    public string? PodType { get; init; }
+    public readonly struct PodConfig
+    {
+        public int? Replicas { get; init; }
+        [JsonPropertyName("pod_type")]
+        public string? PodType { get; init; }
+    }
+    
+    public ConfigureIndexSpec? Spec { get; init; }
+    public DeletionProtection? DeletionProtection { get; init; }
 }
 
-readonly record struct DescribeStatsRequest
+readonly struct DescribeStatsRequest
 {
     public MetadataMap? Filter { get; init; }
 }
 
-readonly record struct CreateCollectionRequest
+readonly struct CreateCollectionRequest
 {
     public required string Name { get; init; }
     public required string Source { get; init; }
 }
 
-readonly record struct ListCollectionsResult
+readonly struct ListCollectionsResult
 {
     public required CollectionDetails[] Collections { get; init; }
 }
 
-record QueryRequest
+sealed class QueryRequest
 {
     public string? Id { get; set; }
     public ReadOnlyMemory<float>? Vector { get; set; }
@@ -51,24 +61,24 @@ record QueryRequest
     public required bool IncludeMetadata { get; init; }
 }
 
-readonly record struct QueryResponse
+readonly struct QueryResponse
 {
     public required ScoredVector[] Matches { get; init; }
     public required string Namespace { get; init; }
 }
 
-readonly record struct UpsertRequest
+readonly struct UpsertRequest
 {
     public required IEnumerable<Vector> Vectors { get; init; }
     public required string Namespace { get; init; }
 }
 
-readonly record struct UpsertResponse
+readonly struct UpsertResponse
 {
     public required uint UpsertedCount { get; init; }
 }
 
-record UpdateRequest
+sealed class UpdateRequest
 {
     public required string Id { get; init; }
     public ReadOnlyMemory<float>? Values { get; init; }
@@ -77,7 +87,7 @@ record UpdateRequest
     public required string Namespace { get; init; }
 }
 
-readonly record struct ListResponse
+readonly struct ListResponse
 {
     public readonly record struct ListVector(string Id);
     public readonly record struct ListPagination(string? Next);
@@ -89,13 +99,13 @@ readonly record struct ListResponse
 }
 
 
-readonly record struct FetchResponse
+readonly struct FetchResponse
 {
     public required Dictionary<string, Vector> Vectors { get; init; }
     public required string Namespace { get; init; }
 }
 
-readonly record struct DeleteRequest
+readonly struct DeleteRequest
 {
     public string[]? Ids { get; init; }
     public required bool DeleteAll { get; init; }

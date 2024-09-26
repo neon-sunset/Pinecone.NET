@@ -66,11 +66,9 @@ public sealed class PineconeClient : IDisposable
     /// <returns>List of index descriptions for all indexes in the project.</returns>
     public async Task<IndexDetails[]> ListIndexes(CancellationToken ct = default)
     {
-        var listIndexesResult = await Http
+        return (await Http
             .GetFromJsonAsync("/indexes", ClientContext.Default.ListIndexesResult, ct)
-            .ConfigureAwait(false);
-
-        return listIndexesResult?.Indexes ?? [];
+            .ConfigureAwait(false)).Indexes;
     }
 
     /// <summary>
@@ -92,9 +90,9 @@ public sealed class PineconeClient : IDisposable
         Metric metric,
         string environment,
         string podType = "p1.x1",
-        uint? pods = 1,
-        uint? shards = 1,
-        uint? replicas = 1,
+        uint pods = 1,
+        uint shards = 1,
+        uint replicas = 1,
         CancellationToken ct = default)
     {
         return CreateIndex(new CreateIndexRequest
@@ -135,7 +133,7 @@ public sealed class PineconeClient : IDisposable
 
     private async Task CreateIndex(CreateIndexRequest request, CancellationToken ct = default)
     {
-        var response = await Http
+        using var response = await Http
             .PostAsJsonAsync("/indexes", request, ClientContext.Default.CreateIndexRequest, ct)
             .ConfigureAwait(false);
         await response.CheckStatusCode(ct).ConfigureAwait(false);
@@ -180,9 +178,6 @@ public sealed class PineconeClient : IDisposable
             .GetFromJsonAsync($"/indexes/{UrlEncoder.Default.Encode(name)}", ClientContext.Default.IndexDetails, ct)
             .ConfigureAwait(false) ?? throw new HttpRequestException("GetIndex request has failed.");
 
-        // TODO: Host is optional according to the API spec: https://docs.pinecone.io/reference/api/control-plane/describe_index
-        // but Transport requires it
-        var host = response.Host!;
         var apiKey = Http.DefaultRequestHeaders.GetValues(Constants.RestApiKey).First();
 
         var index = new Index<TTransport>(LoggerFactory)
@@ -194,11 +189,11 @@ public sealed class PineconeClient : IDisposable
             Spec = response.Spec,
             Status = response.Status,
 #if NET7_0_OR_GREATER
-            Transport = TTransport.Create(host, apiKey, LoggerFactory)
+            Transport = TTransport.Create(response.Host, apiKey, LoggerFactory)
 #elif NET6_0
-            Transport = ITransport<TTransport>.Create(host, apiKey, LoggerFactory)
+            Transport = ITransport<TTransport>.Create(response.Host, apiKey, LoggerFactory)
 #else
-            Transport = CreateTransport<TTransport>(host, apiKey, LoggerFactory)
+            Transport = CreateTransport<TTransport>(response.Host, apiKey, LoggerFactory)
 #endif
         };
 
@@ -232,16 +227,33 @@ public sealed class PineconeClient : IDisposable
     /// <param name="replicas">The new number or replicas.</param>
     /// <param name="podType">The new pod type.</param>
     /// <param name="ct">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
-    public async Task ConfigureIndex(string name, int? replicas = null, string? podType = null, CancellationToken ct = default)
+    public async Task ConfigureIndex(
+        string name,
+        DeletionProtection? deletionProtection = null,
+        int? replicas = null,
+        string? podType = null,
+        CancellationToken ct = default)
     {
-        if (replicas is null && podType is null or [])
+        if (deletionProtection is null && replicas is null && podType is null or [])
         {
             ThrowHelpers.ArgumentException(
-                "At least one of the following parameters must be specified: replicas, podType.");
+                "At least one of the following parameters must be specified: deletionProtection, replicas or podType.");
         }
 
-        var request = new ConfigureIndexRequest { Replicas = replicas, PodType = podType };
-        var response = await Http
+        var request = new ConfigureIndexRequest
+        {
+            Spec = (replicas != null || podType != null) ? new()
+            {
+                Pod = new()
+                {
+                    Replicas = replicas,
+                    PodType = podType
+                }
+            } : null,
+            DeletionProtection = deletionProtection
+        };
+
+        using var response = await Http
             .PatchAsJsonAsync(
                 $"/indexes/{UrlEncoder.Default.Encode(name)}",
                 request,
@@ -285,7 +297,7 @@ public sealed class PineconeClient : IDisposable
     public async Task CreateCollection(string name, string source, CancellationToken ct = default)
     {
         var request = new CreateCollectionRequest { Name = name, Source = source };
-        var response = await Http
+        using var response = await Http
             .PostAsJsonAsync("/collections", request, ClientContext.Default.CreateCollectionRequest, ct)
             .ConfigureAwait(false);
 

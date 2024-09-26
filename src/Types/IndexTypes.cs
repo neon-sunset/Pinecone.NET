@@ -26,7 +26,12 @@ public record IndexDetails
     /// <summary>
     /// The URL address where the index is hosted.
     /// </summary>
-    public string? Host { get; init; }
+    public required string Host { get; init; }
+
+    /// <summary>
+    /// The deletion protection status of the index.
+    ///  </summary>
+    public DeletionProtection DeletionProtection { get; init; }
 
     /// <summary>
     /// Additional information about the index.
@@ -37,6 +42,16 @@ public record IndexDetails
     /// The current status of the index.
     /// </summary>
     public required IndexStatus Status { get; init; }
+}
+
+/// <summary>
+/// Indicates wherher deletion protection is enabled/disabled for the index.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<DeletionProtection>))]
+public enum DeletionProtection
+{
+    Disabled = 0,
+    Enabled = 1
 }
 
 /// <summary>
@@ -97,25 +112,23 @@ public enum IndexState
 /// <summary>
 /// Index specification.
 /// </summary>
-public record IndexSpec
+public readonly record struct IndexSpec
 {
     /// <summary>
     /// Serverless index specification. <see langword="null" /> if the index is pod-based.
     /// </summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ServerlessSpec? Serverless { get; init; }
 
     /// <summary>
     /// Pod-based index specification. <see langword="null" /> if the index is serverless.
     /// </summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public PodSpec? Pod { get; init; }
 }
 
 /// <summary>
 /// Serverless index specification.
 /// </summary>
-public record ServerlessSpec
+public readonly record struct ServerlessSpec
 {
     /// <summary>
     /// The public cloud where the index is hosted.
@@ -136,7 +149,6 @@ public record PodSpec
     /// <summary>
     /// The environment where the index is hosted.
     /// </summary>
-    [JsonPropertyName("environment")]
     public required string Environment { get; init; }
 
     /// <summary>
@@ -148,41 +160,36 @@ public record PodSpec
     /// <summary>
     /// The number of pods used.
     /// </summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public uint? Pods { get; init; }
+    public required uint Pods { get; init; }
 
     /// <summary>
     /// The number od replicas.
     /// </summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public uint? Replicas { get; init; }
+    public required uint Replicas { get; init; }
 
     /// <summary>
     /// The number of shards.
     /// </summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public uint? Shards { get; init; }
+    public required uint Shards { get; init; }
 
     /// <summary>
     /// Configuration for the behavior of internal metadata index. By default, all metadata is indexed. 
     /// When MetadataConfig is present, only specified metadata fields are indexed.
     /// </summary>
     [JsonPropertyName("metadata_config")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public MetadataMap? MetadataConfig { get; init; }
 
     /// <summary>
     /// The name of the collection used as the source for the index.
     /// </summary>
     [JsonPropertyName("source_collection")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SourceCollection { get; init; }
 }
 
 /// <summary>
 /// Statistics describing the contents of an index.
 /// </summary>
-public record IndexStats
+public readonly record struct IndexStats
 {
     /// <summary>
     /// List of namespaces.

@@ -37,7 +37,7 @@ if (!indexes.Contains(indexName))
     await pinecone.CreateServerlessIndex(indexName, 1536, Metric.Cosine, "aws", "us-east-1");
 }
 
-// Get the Pinecone index by name (uses gRPC by default).
+// Get the Pinecone index by name (uses REST by default).
 // The index client is thread-safe, consider caching and/or
 // injecting it as a singleton into your DI container.
 using var index = await pinecone.GetIndex(indexName);

@@ -21,7 +21,7 @@ let main = task {
         // free serverless indexes are currently only available on AWS us-east-1
         do! pinecone.CreateServerlessIndex(indexName, 1536u, Metric.Cosine, "aws", "us-east-1")
 
-    // Get the Pinecone index by name (uses gRPC by default).
+    // Get the Pinecone index by name (uses REST by default).
     // The index client is thread-safe, consider caching and/or
     // injecting it as a singleton into your DI container.
     use! index = pinecone.GetIndex(indexName)

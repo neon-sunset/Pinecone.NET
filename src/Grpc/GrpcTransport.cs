@@ -82,7 +82,6 @@ public readonly record struct GrpcTransport : ITransport<GrpcTransport>
 
         using var call = Grpc.QueryAsync(request, Metadata, cancellationToken: ct);
         var response = await call.ConfigureAwait(false);
-
         var matches = response.Matches;
         var vectors = new Pinecone.ScoredVector[response.Matches.Count];
         for (var i = 0; i < matches.Count; i++)
