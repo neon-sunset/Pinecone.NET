@@ -532,7 +532,7 @@ public sealed partial record Index<TTransport> : IDisposable
 
         if (exceptions != null)
         {
-            var message = "One or more exceptions have occurred." +
+            var message = "One or more exceptions have occurred. " +
                 $"Successfully deleted {deleted} vectors. Batches failed: {exceptions.Count}.";
 
             Logger?.ParallelOperationFailed(message);
