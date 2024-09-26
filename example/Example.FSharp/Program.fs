@@ -1,6 +1,8 @@
-﻿#nowarn "3391"
+#nowarn "3391"
 open System
 open System.Collections.Generic
+open System.Threading.Tasks
+open FSharp.Control
 open Pinecone
 
 let createMetadata x =
@@ -39,6 +41,9 @@ let main = task {
     // Specify metadata filter to query the index with
     let priceRange = createMetadata ["price", createMetadata ["$gte", 75; "$lte", 125]]
 
+    // Wait a bit for the index to update
+    do! Task.Delay(1000)
+
     // Query the index by embedding and metadata filter
     let! results = index.Query(getRandomVector 1536, 3u, filter = priceRange, includeMetadata = true)
     let metadata =
@@ -47,6 +52,9 @@ let main = task {
         |> Seq.map string
         |> String.concat "\n"
     printfn "%s" metadata
+
+    // List all vectors in the index
+    do! index.List() |> TaskSeq.iter (printfn "%s")
 
     // Remove the example vectors we just added
     do! index.Delete ["first"; "second"]

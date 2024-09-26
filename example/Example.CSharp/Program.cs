@@ -19,11 +19,18 @@ if (!indexList.Select(x => x.Name).Contains(indexName))
 // injecting it as a singleton into your DI container.
 using var index = await pinecone.GetIndex(indexName);
 
+// Define a helper method to generate random vectors,
+// Pinecone disallows vectors with all zeros.
+static float[] GetRandomVector(int dimension) =>
+    Enumerable
+        .Range(0, dimension)
+        .Select(_ => Random.Shared.NextSingle())
+        .ToArray();
+
 var first = new Vector
 {
     Id = "first",
-    // Zeroed-out placeholder vector, this is where you put the embeddings unless using sparse vectors
-    Values = new float[1536],
+    Values = GetRandomVector(1536),
     Metadata = new()
     {
         ["new"] = true,
@@ -35,7 +42,7 @@ var first = new Vector
 var second = new Vector
 {
     Id = "second",
-    Values = new float[1536],
+    Values = GetRandomVector(1536),
     Metadata = new() { ["price"] = 100 }
 };
 
@@ -55,14 +62,23 @@ var priceRange = new MetadataMap
     }
 };
 
+// Wait a bit for the index to update
+await Task.Delay(1000);
+
 // Query the index by embedding and metadata filter
 var results = await index.Query(
-    new float[1536],
+    GetRandomVector(1536),
     topK: 3,
     filter: priceRange,
     includeMetadata: true);
 
 Console.WriteLine(string.Join('\n', results.SelectMany(v => v.Metadata!)));
+
+// List all vectors IDs in the index
+await foreach (var id in index.List())
+{
+    Console.WriteLine(id);
+}
 
 // Remove the example vectors we just added
 await index.Delete(["first", "second"]);
