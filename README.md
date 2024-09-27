@@ -154,7 +154,7 @@ var vectors = Enumerable
 
 // Specify the retry limit we are okay with
 var retries = 3;
-do
+while (true)
 {
     try
     {
@@ -172,7 +172,7 @@ do
         vectors = vectors.Where(v => filter.Contains(v.Id)).ToArray();
         Console.WriteLine($"Retrying upsert due to error: {e.Message}");
     }
-} while (retries > 0);
+}
 ```
 
 A similar approach can be used to recover from other streamed or batched operations.  
