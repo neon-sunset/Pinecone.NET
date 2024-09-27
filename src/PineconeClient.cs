@@ -10,6 +10,11 @@ namespace Pinecone;
 /// <summary>
 /// Main entry point for interacting with Pinecone. It is used to create, delete and modify indexes.
 /// </summary>
+/// <remarks>
+/// The <see cref="PineconeClient" /> abstraction is thread-safe and can be shared across multiple threads.
+/// Consider caching and reusing the <see cref="PineconeClient" /> object, for example by registering it as a singleton in a DI container.
+/// If not, make sure to dispose the <see cref="PineconeClient" /> when it is no longer needed.
+/// </remarks>
 public sealed class PineconeClient : IDisposable
 {
     readonly HttpClient Http;
@@ -46,13 +51,14 @@ public sealed class PineconeClient : IDisposable
     /// <summary>
     /// Creates a new instance of the <see cref="PineconeClient" /> class.
     /// </summary>
-    /// /// <param name="apiKey">API key used to connect to Pinecone.</param>
-    /// /// <param name="client">HTTP client used to connect to Pinecone.</param>
+    /// <param name="apiKey">API key used to connect to Pinecone.</param>
+    /// <param name="client">HTTP client used to connect to Pinecone.</param>
     /// <param name="loggerFactory">The logger factory to be used.</param>
     public PineconeClient(string apiKey, HttpClient client, ILoggerFactory? loggerFactory = null)
     {
         ThrowHelpers.CheckNullOrWhiteSpace(apiKey);
         ThrowHelpers.CheckNull(client);
+        ThrowHelpers.CheckNull(client.BaseAddress);
 
         Http = client;
         Http.AddPineconeHeaders(apiKey);

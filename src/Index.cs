@@ -48,6 +48,11 @@ public sealed partial record Index<
 /// <summary>
 /// An object used for interacting with vectors. It is used to upsert, query, fetch, update, delete and list vectors, as well as retrieving index statistics.
 /// </summary>
+/// <remarks>
+/// The <see cref="Index{T}"/> abstraction is thread-safe and can be shared across multiple threads.
+/// It is strongly recommended to cache and reuse the <see cref="Index{T}"/> object, for example by registering it as a singleton in a DI container.
+/// If not, make sure to dispose the <see cref="Index{T}"/> when it is no longer needed.
+/// </remarks>
 /// <typeparam name="TTransport">The type of transport layer used.</typeparam>
 public sealed partial record Index<TTransport> : IDisposable
     where TTransport : ITransport<TTransport>
@@ -87,7 +92,11 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <summary>
     /// Searches an index using the values of a vector with specified ID. It retrieves the IDs of the most similar items, along with their similarity scores.
     /// </summary>
-    /// <remarks>Query by ID uses Approximate Nearest Neighbor, which doesn't guarantee the input vector to appear in the results. To ensure that, use the Fetch operation instead.</remarks>
+    /// <remarks>
+    /// Query by ID uses Approximate Nearest Neighbor, which doesn't guarantee the input vector to appear in the results. To ensure that, use the Fetch operation instead.
+    /// <para/>
+    /// If you do not need to include vector values in the response, set <paramref name="includeValues"/> to <c>false</c> to reduce the response size and read units consumption for the operation.
+    /// </remarks>
     /// <param name="id">The unique ID of the vector to be used as a query vector.</param>
     /// <param name="topK">The number of results to return for each query.</param>
     /// <param name="filter">The filter to apply.</param>
@@ -119,6 +128,9 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <summary>
     /// Searches an index using the specified vector values. It retrieves the IDs of the most similar items, along with their similarity scores.
     /// </summary>
+    /// <remarks>
+    /// If you do not need to include vector values in the response, set <paramref name="includeValues"/> to <c>false</c> to reduce the response size and read units consumption for the operation.
+    /// </remarks>
     /// <param name="values">The query vector. This should be the same length as the dimension of the index being queried.</param>
     /// <param name="sparseValues">Vector sparse data. Represented as a list of indices and a list of corresponded values, which must be with the same length.</param>
     /// <param name="topK">The number of results to return for each query.</param>
@@ -126,7 +138,6 @@ public sealed partial record Index<TTransport> : IDisposable
     /// <param name="indexNamespace">Namespace to query from. If no namespace is provided, the operation applies to all namespaces.</param>
     /// <param name="includeValues">Indicates whether vector values are included in the response.</param>
     /// <param name="includeMetadata">Indicates whether metadata is included in the response as well as the IDs.</param>
-    /// <returns></returns>
     public Task<ScoredVector[]> Query(
         ReadOnlyMemory<float> values,
         uint topK,
