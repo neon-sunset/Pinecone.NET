@@ -26,7 +26,7 @@ public sealed class PineconeClient : IDisposable
     /// <param name="apiKey">API key used to connect to Pinecone.</param>
     /// <param name="loggerFactory">The logger factory to be used.</param>
     public PineconeClient(string apiKey, ILoggerFactory? loggerFactory = null)
-        : this(apiKey, new Uri("https://api.pinecone.io"), loggerFactory)
+        : this(apiKey, Constants.BaseUrl, loggerFactory)
     {
     }
 
@@ -51,6 +51,12 @@ public sealed class PineconeClient : IDisposable
     /// <summary>
     /// Creates a new instance of the <see cref="PineconeClient" /> class.
     /// </summary>
+    /// <remarks>
+    /// If <see cref="HttpClient.BaseAddress" /> is not set, the default base address is used.
+    /// <para/>
+    /// The logger factory, if provided, will be used to instrument the <see cref="Index{TTransport}" /> objects
+    /// created by the client but will not apply to the specified <paramref name="client" /> instance.
+    /// </remarks>
     /// <param name="apiKey">API key used to connect to Pinecone.</param>
     /// <param name="client">HTTP client used to connect to Pinecone.</param>
     /// <param name="loggerFactory">The logger factory to be used.</param>
@@ -58,9 +64,9 @@ public sealed class PineconeClient : IDisposable
     {
         ThrowHelpers.CheckNullOrWhiteSpace(apiKey);
         ThrowHelpers.CheckNull(client);
-        ThrowHelpers.CheckNull(client.BaseAddress);
 
         Http = client;
+        Http.BaseAddress ??= Constants.BaseUrl;
         Http.AddPineconeHeaders(apiKey);
         LoggerFactory = loggerFactory;
     }

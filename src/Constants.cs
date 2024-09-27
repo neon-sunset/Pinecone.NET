@@ -6,9 +6,9 @@ static class Constants
 {
     public const string RestApiKey = "Api-Key";
     public const string GrpcApiKey = "api-key";
-
     public const string ApiVersion = "2024-07";
 
+    public static readonly Uri BaseUrl = new("https://api.pinecone.io");
     public static readonly string UserAgent =
         $"lang=C#; Pinecone.NET/{typeof(Constants).Assembly.GetName().Version?.ToString(3) ?? "0.0.0"}";
 
