@@ -207,7 +207,8 @@ public sealed class PineconeClient : IDisposable
     }
 
 #if !NET7_0_OR_GREATER
-    internal static T CreateTransport<T>(string host, string apiKey, ILoggerFactory? loggerFactory)
+    internal static T CreateTransport<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(string host, string apiKey, ILoggerFactory? loggerFactory)
     {
         if (typeof(T) == typeof(GrpcTransport))
         {
