@@ -178,11 +178,11 @@ do
 A similar approach can be used to recover from other streamed or batched operations.  
 See `ListOperationException`, `ParallelFetchException` and `ParallelDeleteException` in [VectorTypes.cs](src/Types/VectorTypes.cs#L192-L282).
 
-### REST vs gRPC transport
+## REST vs gRPC transport
 
 Prefer `RestTransport` by default. Please find the detailed explanation for specific scenarios below.
 
-#### Low-throughput bandwith minimization
+### Low-throughput bandwith minimization
 
 `GrpcTransport` is a viable alternative for reducing network traffic when working with large vectors under low to moderate throughput scenarios.  
 Protobuf encodes vectors in a much more compact manner, so if you have high-dimensional vectors (1536-3072+), low degree of request concurrency and usually upsert or fetch vectors in small bacthes, it is worth considering `GrpcTransport` for your use case.
@@ -190,7 +190,7 @@ Protobuf encodes vectors in a much more compact manner, so if you have high-dime
 Theoretically, low concurrency throughput may be higher with `GrpcTransport` due to the reduced network traffic, but because how trivial it is to simply
 dispatch multiple requests in parallel (and the fact that `Fetch`, `Upsert` and `Delete` do so automatically), the advantages of this approach are likely to be limited.
 
-#### High concurrency querying, high-throughput vector fetching and upserting
+### High concurrency querying, high-throughput vector fetching and upserting
 
 At the time of writing, Pinecone's HTTP/2 stack is configured to allow few or even just 1 concurrent stream per single HTTP/2 connection.  
 Because HTTP/2 is mandatory for gRPC, this causes significant request queuing over a gRPC channel under high concurrency scenarios, resulting in a poor scalability of the `GrpcTransport` with low ceiling for throughput.
